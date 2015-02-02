@@ -1,0 +1,77 @@
+diff -ruN ipv4-heatmap-20140203.orig/annotate.c ipv4-heatmap-20140203/annotate.c
+--- ipv4-heatmap-20140203.orig/annotate.c	2014-02-03 09:42:29.000000000 -0800
++++ ipv4-heatmap-20140203/annotate.c	2015-01-17 18:29:16.585358080 -0800
+@@ -22,7 +22,7 @@
+  * FONT_ALPHA sets the transparency for the annotations. in libgd, 0 means 100%
+  * transparent, and 127 means 100% opaque.
+  */
+-#define FONT_ALPHA 75
++#define FONT_ALPHA 48
+ 
+ extern gdImagePtr image;
+ extern const char *font_file_or_name;
+@@ -53,7 +53,7 @@
+ 	box2.ymax = box2.ymin + 24;
+ 	if (0 == strcmp(sublabel, "prefix"))
+ 	    sublabel = cidr;
+-	text_in_bbox(sublabel, box2, annotateColor, 12.0);
++	text_in_bbox(sublabel, box2, annotateColor, 24.0);
+     }
+ }
+ 
+diff -ruN ipv4-heatmap-20140203.orig/ipv4-heatmap.c ipv4-heatmap-20140203/ipv4-heatmap.c
+--- ipv4-heatmap-20140203.orig/ipv4-heatmap.c	2014-02-03 09:42:29.000000000 -0800
++++ ipv4-heatmap-20140203/ipv4-heatmap.c	2015-01-18 10:51:48.813347673 -0800
+@@ -122,14 +122,33 @@
+     /*
+      * The default color map ranges from red to blue
+      */
+-    for (i = 0; i < NUM_DATA_COLORS; i++) {
+-	double hue;
+-	double r, g, b;
+-	hue = 240.0 * (255 - i) / 255;
+-	PIX_HSV_TO_RGB_COMMON(hue, 1.0, 1.0, r, g, b);
+-	colors[i] = gdImageColorAllocate(image, r, g, b);
+-	if (debug > 1)
+-	    fprintf(stderr, "colors[%d]=%d\n", i, colors[i]);
++    colors[0] = gdImageColorAllocate(image, 123, 2, 144);
++    colors[1] = gdImageColorAllocate(image, 131, 12, 171);
++    colors[2] = gdImageColorAllocate(image, 134, 31, 194);
++    colors[3] = gdImageColorAllocate(image, 131, 53, 214);
++    colors[4] = gdImageColorAllocate(image, 125, 72, 234);
++    colors[5] = gdImageColorAllocate(image, 114, 90, 251);
++    colors[6] = gdImageColorAllocate(image, 106, 106, 254);
++    colors[7] = gdImageColorAllocate(image, 100, 120, 250);
++    colors[8] = gdImageColorAllocate(image, 90, 137, 238);
++    colors[9] = gdImageColorAllocate(image, 82, 150, 225);
++    colors[10] = gdImageColorAllocate(image, 72, 163, 212);
++    colors[11] = gdImageColorAllocate(image, 62, 175, 196);
++    colors[12] = gdImageColorAllocate(image, 56, 185, 179);
++    colors[13] = gdImageColorAllocate(image, 62, 193, 161);
++    colors[14] = gdImageColorAllocate(image, 69, 202, 141);
++    colors[15] = gdImageColorAllocate(image, 74, 209, 124);
++    colors[16] = gdImageColorAllocate(image, 80, 215, 106);
++    colors[17] = gdImageColorAllocate(image, 88, 222, 85);
++    colors[18] = gdImageColorAllocate(image, 95, 229, 71);
++    colors[19] = gdImageColorAllocate(image, 113, 232, 76);
++    colors[20] = gdImageColorAllocate(image, 136, 235, 81);
++    colors[21] = gdImageColorAllocate(image, 161, 236, 85);
++    colors[22] = gdImageColorAllocate(image, 178, 236, 87);
++    colors[23] = gdImageColorAllocate(image, 192, 236, 89);
++    colors[24] = gdImageColorAllocate(image, 207, 236, 91);
++    for (i = 25; i < NUM_DATA_COLORS; i++) {
++        colors[i] = gdImageColorAllocate(image, 0, 0, 0);
+     }
+ 
+     /*
+diff -ruN ipv4-heatmap-20140203.orig/Makefile ipv4-heatmap-20140203/Makefile
+--- ipv4-heatmap-20140203.orig/Makefile	2014-02-03 09:42:29.000000000 -0800
++++ ipv4-heatmap-20140203/Makefile	2015-01-17 11:56:42.100078745 -0800
+@@ -1,5 +1,5 @@
+ INCS=-I/usr/local/include
+-LIBS=-L/usr/local/lib -lgd
++LIBS=-L/usr/local/lib -lgd -lm
+ CFLAGS=-g -Wall ${INCS}
+ LDFLAGS=-g
+ OBJS=\
+Binary files ipv4-heatmap-20140203.orig/map.png and ipv4-heatmap-20140203/map.png differ
