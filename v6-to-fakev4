@@ -1,0 +1,55 @@
+#!/usr/bin/python
+
+# v6-to-fakev4
+# Copyright (C) 2015 Ryan Finnie
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+import sys
+import socket
+import re
+
+def bytearray_to_int(b):
+    out = 0
+    for x in b:
+        out = (out << 8) + x
+    return out
+
+def int_to_bytearray(i, minimum=1):
+    out = bytearray()
+    while i >= 256:
+        out.insert(0, i & 0xff)
+        i = i >> 8
+    out.insert(0, i)
+    out_len = len(out)
+    if out_len < minimum:
+        out = bytearray(minimum - out_len) + out
+    return out
+
+r1 = re.compile(r'^\* +([0-9a-f:]+)\/([0-9]+) +')
+for l in sys.stdin:
+    rm = re.match(r1, l)
+    if rm is None:
+        continue
+    (ip, cidr) = rm.groups()
+    cidr = int(cidr)
+    x = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip))[0:4])
+    if (x < 0x20000000) or (x > 0x2fffffff):
+        continue
+    y = (x & 0x0fffffff) >> 4
+    z = int_to_bytearray(x, 4) + bytearray('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+    fakeip = socket.inet_ntoa(str(int_to_bytearray(y << 8, 4)))
+    print '%s/%s' % (fakeip, cidr - 4)

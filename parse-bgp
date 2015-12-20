@@ -1,0 +1,188 @@
+#!/usr/bin/python
+
+# parse-bgp - convert "sh ip bgp" to ipv4-heatmap data
+# Copyright (C) 2015 Ryan Finnie
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+import sys
+import socket
+import re
+
+
+def bytearray_to_int(b):
+    out = 0
+    for x in b:
+        out = (out << 8) + x
+    return out
+
+
+def int_to_bytearray(i, minimum=1):
+    out = bytearray()
+    while i >= 256:
+        out.insert(0, i & 0xff)
+        i = i >> 8
+    out.insert(0, i)
+    out_len = len(out)
+    if out_len < minimum:
+        out = bytearray(minimum - out_len) + out
+    return out
+
+
+r_v4cidr = re.compile(r'^\* +([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\/([0-9]+) +')
+r_v4classful = re.compile(r'^\* +([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) +[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ +')
+r_v6cidr = re.compile(r'^\* +([0-9a-f:]+)\/([0-9]+) +')
+
+
+def get_match(line):
+    # Classless IPv4.  Current "sh ip bgp" output is always CIDR.
+    match = re.match(r_v4cidr, line)
+    if match is not None:
+        (ip, cidr) = match.groups()
+        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET, ip)))
+        return (ip, int(cidr), int_32, False)
+
+    # Old "sh ip bgp" output would only show CIDR notation for classless
+    # announcements.  We need to figure out the netmask for classful
+    # announcements ourselves.
+    match = re.match(r_v4classful, line)
+    if match is not None:
+        (ip,) = match.groups()
+        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET, ip)))
+        if int_32 >= 0xe0000000:
+            return (None, None, None, False)
+        elif int_32 >= 0xc0000000:
+            cidr = 24
+        elif int_32 >= 0x80000000:
+            cidr = 16
+        else:
+            cidr = 8
+
+        return (ip, int(cidr), int_32, False)
+
+    # IPv6 is always classless.
+    match = re.match(r_v6cidr, line)
+    if match is not None:
+        (ip, cidr) = match.groups()
+        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip))[0:4])
+        return (ip, int(cidr), int_32, True)
+    return (None, None, None, False)
+
+
+current_printed = 0
+cidr_24_dict = {}
+routes_loaded = 0
+mode_ipv6 = None
+
+for line in sys.stdin:
+    # Look for announcements
+    (ip, cidr, int_32, is_ipv6) = get_match(line)
+    if ip is None:
+        continue
+
+    # 0.0.0.0/0 and ::/0 aren't too useful
+    if cidr == 0:
+        continue
+    # At the moment, hard code 2000::/4 and ignore everything else
+    if is_ipv6 and ((int_32 < 0x20000000) or (int_32 > 0x2fffffff)):
+        continue
+
+    routes_loaded += 1
+    if mode_ipv6 is None:
+        if is_ipv6:
+            print >> sys.stderr, 'IPv6 mode.'
+            mode_ipv6 = True
+        else:
+            print >> sys.stderr, 'IPv4 mode.'
+            mode_ipv6 = False
+    if is_ipv6:
+        # In IPv4 mode we normally need to count forward from /(32 - 8)
+        # since the aggregation is against /24.  In IPv6, aggregation is
+        # still against /24, but we're already shifted 4 bits from
+        # starting at 2000::, so we need to count forward from /(32 - 4).
+        cidr_offset = 4
+        # Strip off the first 4 and last 4 bits to make the corresponding
+        # 24-bit int.
+        int_24_masked = (int_32 & 0x0fffffff) >> 4
+    else:
+        cidr_offset = 8
+        int_24_masked = int_32 >> 8
+
+    # If the network is smaller than the masked 24-bit destination, all
+    # we need to do is put it in the destination entry.  But if it's
+    # larger, then we need to loop over successive entries.
+    if cidr > (32 - cidr_offset):
+        if (int_24_masked not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked]):
+            cidr_24_dict[int_24_masked] = cidr
+    else:
+        for i in range(2 ** ((32 - cidr_offset) - cidr)):
+            int_24_masked_2 = int_24_masked + i
+            if (int_24_masked_2 not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked_2]):
+                cidr_24_dict[int_24_masked_2] = cidr
+
+    new_printed = int_24_masked >> 16
+    if current_printed != new_printed:
+        sys.stderr.write('\r\x1b[K%s/%s' % (ip, cidr))
+        sys.stderr.flush()
+        current_printed = new_printed
+
+sys.stderr.write('\r\x1b[K')
+print >> sys.stderr, '%d routes loaded, %d entries.' % (routes_loaded, len(cidr_24_dict))
+
+current_printed = 0
+entries_printed = 0
+
+for int_24_masked in sorted(cidr_24_dict.keys()):
+    cidr = cidr_24_dict[int_24_masked]
+    adjcidr = cidr
+
+    # Currently no announcements are outside these bounds (/12 - /64 for
+    # IPv6, /8 - /32 for IPv4), but if they ever do, we want to pretend
+    # they have these bounds.
+    if mode_ipv6:
+        if cidr > 64:
+            adjcidr = 64
+        elif cidr < 12:
+            adjcidr = 12
+    else:
+        # > 32 is not even possible, don't bother checking
+        if cidr < 8:
+            adjcidr = 8
+
+    # Since this output is for feeding into ipv4-heatmap (which by its
+    # name is IPv4-only), we pretend the entire masked 24-bit range is
+    # an IPv4 network, even if it's IPv6.
+    ip = int_24_masked << 8
+    ip_24 = socket.inet_ntoa(str(int_to_bytearray(ip, 4)))
+
+    if mode_ipv6:
+        # Range from /12 to /64, mapped to color indexes 0-255
+        color_idx = int((adjcidr - 12) / 52.0 * 255.0)
+    else:
+        # Range from /8 to /32, mapped to color indexes 0-255
+        color_idx = int((adjcidr - 8) / 24.0 * 255.0)
+
+    print '%s %d' % (ip_24, color_idx)
+
+    entries_printed += 1
+    new_printed = int_24_masked >> 16
+    if current_printed != new_printed:
+        sys.stderr.write('\r\x1b[K%s' % ip_24)
+        sys.stderr.flush()
+        current_printed = new_printed
+
+sys.stderr.write('\r\x1b[K')
+print >> sys.stderr, '%d entries printed.' % entries_printed

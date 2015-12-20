@@ -1,0 +1,7 @@
+ipv4-*.data
+ipv6-*.data
+ipv4-*.png
+ipv6-*.png
+ipv4-*-snapshot.*
+ipv6-*-snapshot.*
+ipv4-heatmap
