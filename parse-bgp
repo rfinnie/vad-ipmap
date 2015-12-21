@@ -42,9 +42,9 @@ def int_to_bytearray(i, minimum=1):
     return out
 
 
-r_v4cidr = re.compile(r'^\* +([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\/([0-9]+) +')
-r_v4classful = re.compile(r'^\* +([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) +[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ +')
-r_v6cidr = re.compile(r'^\* +([0-9a-f:]+)\/([0-9]+) +')
+r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\/([0-9]+) +')
+r_v4classful = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) +[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ +')
+r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+) +')
 
 
 def get_match(line):
