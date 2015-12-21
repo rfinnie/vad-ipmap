@@ -42,38 +42,33 @@ def int_to_bytearray(i, minimum=1):
     return out
 
 
-r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)\/([0-9]+) +')
-r_v4classful = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+) +[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ +')
-r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+) +')
+r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?')
+r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+)')
 
 
 def get_match(line):
-    # Classless IPv4.  Current "sh ip bgp" output is always CIDR.
+    # IPv4
     match = re.match(r_v4cidr, line)
     if match is not None:
-        (ip, cidr) = match.groups()
+        (ip, _, cidr) = match.groups()
         int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET, ip)))
-        return (ip, int(cidr), int_32, False)
 
-    # Old "sh ip bgp" output would only show CIDR notation for classless
-    # announcements.  We need to figure out the netmask for classful
-    # announcements ourselves.
-    match = re.match(r_v4classful, line)
-    if match is not None:
-        (ip,) = match.groups()
-        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET, ip)))
-        if int_32 >= 0xe0000000:
-            return (None, None, None, False)
-        elif int_32 >= 0xc0000000:
-            cidr = 24
-        elif int_32 >= 0x80000000:
-            cidr = 16
-        else:
-            cidr = 8
+        # Some "sh ip bgp" output will only show CIDR notation for classless
+        # announcements.  We need to figure out the netmask for classful
+        # announcements ourselves.
+        if cidr is None:
+            if int_32 >= 0xe0000000:
+                return (None, None, None, False)
+            elif int_32 >= 0xc0000000:
+                cidr = 24
+            elif int_32 >= 0x80000000:
+                cidr = 16
+            else:
+                cidr = 8
 
         return (ip, int(cidr), int_32, False)
 
-    # IPv6 is always classless.
+    # IPv6
     match = re.match(r_v6cidr, line)
     if match is not None:
         (ip, cidr) = match.groups()
