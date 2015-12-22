@@ -1,0 +1,63 @@
+#!/usr/bin/python
+
+# bgpdump-to-shipbgp - Convert bgpdump single-line data to "sh ip bgp"
+# Copyright (C) 2015 Ryan Finnie
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+import sys
+
+
+print 'Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,'
+print '              r RIB-failure, S Stale'
+print 'Origin codes: i - IGP, e - EGP, ? - incomplete'
+print ''
+print '   Network            Next Hop            Metric LocPrf Weight Path'
+
+last_network = None
+lines_printed = 0
+
+for line in sys.stdin:
+    i = line.split('|')
+    if i[5] == last_network:
+        printable_network = ''
+    else:
+        printable_network = i[5]
+        last_network = i[5]
+    if i[7] == 'IGP':
+        origin_s = 'i'
+    elif i[7] == 'EGP':
+        origin_s = 'e'
+    else:
+        origin_s = '?'
+
+    print '*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}'.format(
+        printable_network,
+        i[3],
+        i[10],
+        i[9],
+        0,
+        i[6],
+        origin_s,
+    )
+
+    if (lines_printed % 5000) == 0:
+        sys.stderr.write('\r\x1b[K%s' % i[5])
+        sys.stderr.flush()
+    lines_printed += 1
+
+sys.stderr.write('\r\x1b[K')
+
