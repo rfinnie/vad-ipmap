@@ -77,7 +77,7 @@ def get_match(line):
     return (None, None, None, False)
 
 
-current_printed = 0
+current_printed = -1
 cidr_24_dict = {}
 routes_loaded = 0
 mode_ipv6 = None
@@ -137,7 +137,7 @@ for line in sys.stdin:
 sys.stderr.write('\r\x1b[K')
 print >> sys.stderr, '%d routes loaded, %d entries.' % (routes_loaded, len(cidr_24_dict))
 
-current_printed = 0
+current_printed = -1
 entries_printed = 0
 
 for int_24_masked in sorted(cidr_24_dict.keys()):
