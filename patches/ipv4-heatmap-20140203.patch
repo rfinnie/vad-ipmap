@@ -1,3 +1,14 @@
+This patch modifies the following:
+
+  * Modifies the font transparency from 75 (~59%) to 48 (~38%)
+  * Changes the max CIDR text size from 12.0 to 24.0
+  * Replaces the generated color map with CubeYF[0]
+  * Adds -lm to link on modern GCC
+
+[0] https://mycarta.wordpress.com/2013/02/21/perceptual-rainbow-palette-the-method/
+
+ -- Ryan Finnie <ryan@finnie.org> (2015-12-20)
+
 diff -ru ipv4-heatmap-20140203.orig/annotate.c ipv4-heatmap-20140203/annotate.c
 --- ipv4-heatmap-20140203.orig/annotate.c	2014-02-03 09:42:29.000000000 -0800
 +++ ipv4-heatmap-20140203/annotate.c	2015-12-20 14:28:50.540266564 -0800
