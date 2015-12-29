@@ -19,8 +19,24 @@
 # 02110-1301, USA.
 
 import sys
+import argparse
 import socket
 import re
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        '--quiet', '-q', dest='quiet', action='store_true',
+        help='quiet mode',
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 
 def bytearray_to_int(b):
@@ -77,6 +93,9 @@ def get_match(line):
     return (None, None, None, False)
 
 
+args = parse_args()
+is_tty = sys.stderr.isatty()
+
 current_printed = -1
 cidr_24_dict = {}
 routes_loaded = 0
@@ -98,10 +117,12 @@ for line in sys.stdin:
     routes_loaded += 1
     if mode_ipv6 is None:
         if is_ipv6:
-            print >> sys.stderr, 'IPv6 mode.'
+            if not args.quiet:
+                print >> sys.stderr, 'IPv6 mode.'
             mode_ipv6 = True
         else:
-            print >> sys.stderr, 'IPv4 mode.'
+            if not args.quiet:
+                print >> sys.stderr, 'IPv4 mode.'
             mode_ipv6 = False
     if is_ipv6:
         # In IPv4 mode we normally need to count forward from /(32 - 8)
@@ -128,14 +149,17 @@ for line in sys.stdin:
             if (int_24_masked_2 not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked_2]):
                 cidr_24_dict[int_24_masked_2] = cidr
 
-    new_printed = int_24_masked >> 16
-    if current_printed != new_printed:
-        sys.stderr.write('\r\x1b[K%s/%s' % (ip, cidr))
-        sys.stderr.flush()
-        current_printed = new_printed
+    if (not args.quiet) and (is_tty):
+        new_printed = int_24_masked >> 16
+        if current_printed != new_printed:
+            sys.stderr.write('\r\x1b[K%s/%s' % (ip, cidr))
+            sys.stderr.flush()
+            current_printed = new_printed
 
-sys.stderr.write('\r\x1b[K')
-print >> sys.stderr, '%d routes loaded, %d entries.' % (routes_loaded, len(cidr_24_dict))
+if not args.quiet:
+    if is_tty:
+        sys.stderr.write('\r\x1b[K')
+    print >> sys.stderr, '%d routes loaded, %d entries.' % (routes_loaded, len(cidr_24_dict))
 
 current_printed = -1
 entries_printed = 0
@@ -173,11 +197,14 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     print '%s %d' % (ip_24, color_idx)
 
     entries_printed += 1
-    new_printed = int_24_masked >> 16
-    if current_printed != new_printed:
-        sys.stderr.write('\r\x1b[K%s' % ip_24)
-        sys.stderr.flush()
-        current_printed = new_printed
+    if (not args.quiet) and is_tty:
+        new_printed = int_24_masked >> 16
+        if current_printed != new_printed:
+            sys.stderr.write('\r\x1b[K%s' % ip_24)
+            sys.stderr.flush()
+            current_printed = new_printed
 
-sys.stderr.write('\r\x1b[K')
-print >> sys.stderr, '%d entries printed.' % entries_printed
+if not args.quiet:
+    if is_tty:
+        sys.stderr.write('\r\x1b[K')
+    print >> sys.stderr, '%d entries printed.' % entries_printed
