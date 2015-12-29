@@ -1,7 +1,6 @@
-ipv4-*.data
-ipv6-*.data
-ipv4-*.png
-ipv6-*.png
-ipv4-*-snapshot.*
-ipv6-*-snapshot.*
-ipv4-heatmap
+sources/*.heatmap.bz2
+sources/*.snapshot.bz2
+sources/*.rib.bz2
+png/*.png
+bin/ipv4-heatmap
+bin/bgpdump

@@ -1,15 +1,25 @@
-NAME=ipv4
+export PATH := $(CURDIR)/bin:$(PATH)
 
-all: ${NAME}.png
+HEATMAP_FONT = Source Sans Pro:style=Regular
+SNAPSHOTS = $(patsubst sources/%.rib.bz2,sources/%.snapshot.bz2,$(wildcard sources/*.rib.bz2))
+HEATMAPS = $(patsubst sources/%.snapshot.bz2,sources/%.heatmap.bz2,$(SNAPSHOTS) $(wildcard sources/*.snapshot.bz2))
+PNGS = $(patsubst sources/%.heatmap.bz2,png/%.png,$(HEATMAPS) $(wildcard sources/*.heatmap.bz2))
 
-${NAME}-snapshot.bz2: ${NAME}-rib.bz2 bgpdump
-	./bgpdump -m -v ${NAME}-rib.bz2 | ./bgpdump-to-shipbgp | bzip2 -c > $@
+sources/%.snapshot.bz2: sources/%.rib.bz2
+	bgpdump -m -v $< | bgpdump-to-shipbgp | bzip2 -c > $@
 
-${NAME}.data: ${NAME}-snapshot.bz2 parse-bgp
-	bzcat ${NAME}-snapshot.bz2 | ./parse-bgp > $@
+sources/%.heatmap.bz2: sources/%.snapshot.bz2
+	bzcat $< | parse-bgp | bzip2 -c > $@
 
-${NAME}.png: ${NAME}.data ${NAME}.annotations ${NAME}.shade ipv4-heatmap
-	./ipv4-heatmap -s ${NAME}.shade -a ${NAME}.annotations -f "Source Sans Pro:style=Regular" -o $@ < ${NAME}.data
+png/%.png: sources/%.heatmap.bz2 heatmap-data/%.annotations heatmap-data/%.shade
+	bzcat $< | ipv4-heatmap -s $(patsubst png/%.png,heatmap-data/%.shade,$@) -a $(patsubst png/%.png,heatmap-data/%.annotations,$@) -f "$(HEATMAP_FONT)" -o $@
 
-clean:
-	rm -f ${NAME}.data ${NAME}.png
+png: $(PNGS)
+
+heatmap: $(HEATMAPS)
+
+snapshot: $(SNAPSHOTS)
+
+all: snapshot heatmap png
+
+.PHONY: all snapshot heatmap png
