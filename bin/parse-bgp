@@ -200,7 +200,13 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     if (not args.quiet) and is_tty:
         new_printed = int_24_masked >> 16
         if current_printed != new_printed:
-            sys.stderr.write('\r\x1b[K%s' % ip_24)
+            if mode_ipv6:
+                real_ipv6_bytes = int_to_bytearray((int_24_masked << 4) + 0x20000000, 4) + \
+                    bytearray('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+                real_ipv6_addr = socket.inet_ntop(socket.AF_INET6, str(real_ipv6_bytes))
+                sys.stderr.write('\r\x1b[K%s (%s)' % (ip_24, real_ipv6_addr))
+            else:
+                sys.stderr.write('\r\x1b[K%s' % ip_24)
             sys.stderr.flush()
             current_printed = new_printed
 
