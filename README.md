@@ -27,12 +27,12 @@ For example, 2000::/28 becomes 0.0.0.0, and 2001:470:1f05:22e::/64 becomes 0.16.
 
 A few reasons:
 
- 1) There are a few Python MRT libraries (for example, [mrtparse](https://github.com/YoshiyukiYamauchi/mrtparse)), but they are approximately two orders of magnitute slower than parsing the equivalent "sh ip bgp" data.
+ 1. There are a few Python MRT libraries (for example, [mrtparse](https://github.com/YoshiyukiYamauchi/mrtparse)), but they are approximately two orders of magnitute slower than parsing the equivalent "sh ip bgp" data.
     [bgpdump](http://www.ris.ripe.net/source/bgpdump/) is faster, but only gets you to single-line bgpdump format, and is still an order of magnitude slower.
     (`bgpdump-to-shipbgp` is fast enough that the further speed loss is negligable.)
- 2) Route Views also publishes dumps in "sh ip bgp" format, but only for the IPv4 data.
+ 2. Route Views also publishes dumps in "sh ip bgp" format, but only for the IPv4 data.
     IPv6 data is only in MRT format.
- 3) Route Views MRT data only goes back to 2001, while "sh ip bgp" data goes back to 1996.
+ 3. Route Views MRT data only goes back to 2001, while "sh ip bgp" data goes back to 1996.
 
 Since both MRT and "sh ip bgp" sources are needed, we use "sh ip bgp" as the common denominator for a conversion base.
 
