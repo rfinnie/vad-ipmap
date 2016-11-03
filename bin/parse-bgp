@@ -33,6 +33,10 @@ def parse_args():
         '--quiet', '-q', dest='quiet', action='store_true',
         help='quiet mode',
     )
+    parser.add_argument(
+        '--config', '-c', type=str,
+        help='configuration json',
+    )
 
     args = parser.parse_args()
 
@@ -61,6 +65,12 @@ def int_to_bytearray(i, minimum=1):
 r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?')
 r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+)')
 
+V6_START = '2000::'
+V6_LENGTH = 4
+#V6_START = '2400::'
+#V6_LENGTH = 12
+#V6_START = '2000::'
+#V6_LENGTH = 14
 
 def get_match(line):
     # IPv4
@@ -87,14 +97,29 @@ def get_match(line):
     # IPv6
     match = re.match(r_v6cidr, line)
     if match is not None:
+        v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
+        v6lower = v6net & (2**128 - 2**V6_LENGTH)
+        v6upper = v6lower + 2**(128-V6_LENGTH) - 1
         (ip, cidr) = match.groups()
-        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip))[0:4])
+        v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
+        if (v6int < v6lower) or (v6int > v6upper):
+            return (None, None, None, True)
+        int_32 = ((v6int - v6lower) & ((2**(128-V6_LENGTH))-1)) >> (128-32-V6_LENGTH)
         return (ip, int(cidr), int_32, True)
     return (None, None, None, False)
 
 
 args = parse_args()
 is_tty = sys.stderr.isatty()
+
+if args.config:
+    import json
+    with open(args.config) as f:
+        json_config = json.load(f)
+    if 'v6_start' in json_config:
+        V6_START = json_config['v6_start']
+    if 'v6_length' in json_config:
+        V6_LENGTH = json_config['v6_length']
 
 current_printed = -1
 cidr_24_dict = {}
@@ -110,9 +135,6 @@ for line in sys.stdin:
     # 0.0.0.0/0 and ::/0 aren't too useful
     if cidr == 0:
         continue
-    # At the moment, hard code 2000::/4 and ignore everything else
-    if is_ipv6 and ((int_32 < 0x20000000) or (int_32 > 0x2fffffff)):
-        continue
 
     routes_loaded += 1
     if mode_ipv6 is None:
@@ -125,26 +147,24 @@ for line in sys.stdin:
                 print >> sys.stderr, 'IPv4 mode.'
             mode_ipv6 = False
     if is_ipv6:
-        # In IPv4 mode we normally need to count forward from /(32 - 8)
-        # since the aggregation is against /24.  In IPv6, aggregation is
-        # still against /24, but we're already shifted 4 bits from
-        # starting at 2000::, so we need to count forward from /(32 - 4).
-        cidr_offset = 4
-        # Strip off the first 4 and last 4 bits to make the corresponding
-        # 24-bit int.
-        int_24_masked = (int_32 & 0x0fffffff) >> 4
+        adj_cidr = cidr - V6_LENGTH
+        if adj_cidr > 32:
+            adj_cidr = 32
+        cidr_offset = 32 - 8
+        int_24_masked = int_32 >> 8
     else:
-        cidr_offset = 8
+        adj_cidr = cidr
+        cidr_offset = 32 - 8
         int_24_masked = int_32 >> 8
 
     # If the network is smaller than the masked 24-bit destination, all
     # we need to do is put it in the destination entry.  But if it's
     # larger, then we need to loop over successive entries.
-    if cidr > (32 - cidr_offset):
+    if adj_cidr > cidr_offset:
         if (int_24_masked not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked]):
             cidr_24_dict[int_24_masked] = cidr
     else:
-        for i in range(2 ** ((32 - cidr_offset) - cidr)):
+        for i in range(2 ** (cidr_offset - adj_cidr)):
             int_24_masked_2 = int_24_masked + i
             if (int_24_masked_2 not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked_2]):
                 cidr_24_dict[int_24_masked_2] = cidr
@@ -172,14 +192,16 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     # IPv6, /8 - /32 for IPv4), but if they ever do, we want to pretend
     # they have these bounds.
     if mode_ipv6:
-        if cidr > 64:
-            adjcidr = 64
-        elif cidr < 12:
-            adjcidr = 12
+        cidr_low = 8 + V6_LENGTH
+        #cidr_high = 64 + V6_LENGTH
+        cidr_high = cidr_low + 52
     else:
-        # > 32 is not even possible, don't bother checking
-        if cidr < 8:
-            adjcidr = 8
+        cidr_low = 8
+        cidr_high = 32
+    if cidr > cidr_high:
+        adjcidr = cidr_high
+    elif cidr < cidr_low:
+        adjcidr = cidr_low
 
     # Since this output is for feeding into ipv4-heatmap (which by its
     # name is IPv4-only), we pretend the entire masked 24-bit range is
@@ -187,12 +209,8 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     ip = int_24_masked << 8
     ip_24 = socket.inet_ntoa(str(int_to_bytearray(ip, 4)))
 
-    if mode_ipv6:
-        # Range from /12 to /64, mapped to color indexes 0-255
-        color_idx = int((adjcidr - 12) / 52.0 * 255.0)
-    else:
-        # Range from /8 to /32, mapped to color indexes 0-255
-        color_idx = int((adjcidr - 8) / 24.0 * 255.0)
+    # Range from cidr_low to cidr_high, mapped to color indexes 0-255
+    color_idx = int((adjcidr - cidr_low) / float(cidr_high - cidr_low) * 255.0)
 
     print '%s %d' % (ip_24, color_idx)
 
@@ -200,13 +218,7 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     if (not args.quiet) and is_tty:
         new_printed = int_24_masked >> 16
         if current_printed != new_printed:
-            if mode_ipv6:
-                real_ipv6_bytes = int_to_bytearray((int_24_masked << 4) + 0x20000000, 4) + \
-                    bytearray('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
-                real_ipv6_addr = socket.inet_ntop(socket.AF_INET6, str(real_ipv6_bytes))
-                sys.stderr.write('\r\x1b[K%s (%s)' % (ip_24, real_ipv6_addr))
-            else:
-                sys.stderr.write('\r\x1b[K%s' % ip_24)
+            sys.stderr.write('\r\x1b[K%s' % ip_24)
             sys.stderr.flush()
             current_printed = new_printed
 

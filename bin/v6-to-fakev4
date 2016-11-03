@@ -21,6 +21,21 @@
 import sys
 import socket
 import re
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        '--config', '-c', type=str,
+        help='configuration json',
+    )
+
+    args = parser.parse_args()
+
+    return args
 
 def bytearray_to_int(b):
     out = 0
@@ -39,17 +54,42 @@ def int_to_bytearray(i, minimum=1):
         out = bytearray(minimum - out_len) + out
     return out
 
-r1 = re.compile(r'^\* +([0-9a-f:]+)\/([0-9]+) +')
-for l in sys.stdin:
-    rm = re.match(r1, l)
-    if rm is None:
-        continue
-    (ip, cidr) = rm.groups()
-    cidr = int(cidr)
-    x = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip))[0:4])
-    if (x < 0x20000000) or (x > 0x2fffffff):
-        continue
-    y = (x & 0x0fffffff) >> 4
-    z = int_to_bytearray(x, 4) + bytearray('\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
-    fakeip = socket.inet_ntoa(str(int_to_bytearray(y << 8, 4)))
-    print '%s/%s' % (fakeip, cidr - 4)
+r_v6cidr_bare = re.compile(r'^([0-9a-f:]+)\/([0-9]+)(.*)$')
+V6_START = '2000::'
+V6_LENGTH = 4
+
+def get_match(line):
+    match = re.match(r_v6cidr_bare, line)
+    if match is not None:
+        v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
+        v6lower = v6net & (2**128 - 2**V6_LENGTH)
+        v6upper = v6lower + 2**(128-V6_LENGTH) - 1
+        (ip, cidr, rest) = match.groups()
+        v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
+        if (v6int < v6lower) or (v6int > v6upper):
+            return (None, None, None, True, line)
+        int_32 = ((v6int - v6lower) & ((2**(128-V6_LENGTH))-1)) >> (128-32-V6_LENGTH)
+        return (ip, int(cidr), int_32, True, rest)
+    return (None, None, None, False, line)
+
+
+args = parse_args()
+
+if args.config:
+    import json
+    with open(args.config) as f:
+        json_config = json.load(f)
+    if 'v6_start' in json_config:
+        V6_START = json_config['v6_start']
+    if 'v6_length' in json_config:
+        V6_LENGTH = json_config['v6_length']
+
+for line in sys.stdin:
+    (ip, cidr, int_32, is_ipv6, rest) = get_match(line)
+    if int_32 is not None:
+        fakecidr = cidr - V6_LENGTH
+        if fakecidr > 32:
+            fakecidr = 32
+        print '%s/%s%s' % (socket.inet_ntop(socket.AF_INET, str(int_to_bytearray(int_32, 4))), fakecidr, rest)
+    else:
+        print line
