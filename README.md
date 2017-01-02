@@ -16,8 +16,18 @@ To work with IPv6 data, we aggregate the target IPv6 range down to 24 bits worth
 Currently, this means working with 2000::/4.
 
 Beginning with 2000::/4, we are masking off and shifting 4 bits, so each IPv6 /28 corresponds to a fake IPv4 /24.
-For example, 2000::/28 becomes 0.0.0.0, and 2001:470:1f05:22e::/64 becomes 0.16.71.0 and the IPv6 /64 would be indicated in 0.16.71.0/24.
-2001:c00::/23 becomes 0.16.192.0, and since we are aggregating to /24s, the IPv6 /23 (fake IPv4 /19) would be indicated in 0.16.192.0/24, 0.16.192.1/24, 0.16.192.2/24, etc, a total of 64 times.
+For example, 2000::/28 becomes 0.0.0.0/24.
+2001:470:1f05:22e::/64 becomes 0.16.71.0 and the IPv6 /64 would be indicated in 0.16.71.0/24 since an IPv6 /64 is smaller than a fake IPv4 /24 (or even a fake IPv4 /32).
+2001:c00::/23 becomes 0.16.192.0, and since we are aggregating to /24s, the IPv6 /23 (fake IPv4 /19) would be indicated in 0.16.192.0/24, 0.16.193.0/24, 0.16.194.0/24, etc, through 0.16.223.0/24 -- a total of 32 times.
+
+This can be tested using `parse-bgp`:
+```
+parse-bgp 2>/dev/null <<"EOM"
+*  2000::/28
+*  2001:470:1f05:22e::/64
+*  2001:c00::/23
+EOM
+```
 
 ## Data Sources
 
