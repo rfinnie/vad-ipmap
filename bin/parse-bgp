@@ -65,6 +65,7 @@ def int_to_bytearray(i, minimum=1):
 r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?')
 r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+)')
 
+IGNORE = []
 V6_START = '2000::'
 V6_LENGTH = 4
 #V6_START = '2400::'
@@ -120,6 +121,8 @@ if args.config:
         V6_START = json_config['v6_start']
     if 'v6_length' in json_config:
         V6_LENGTH = json_config['v6_length']
+    if 'ignore' in json_config:
+        IGNORE = json_config['ignore']
 
 current_printed = -1
 cidr_24_dict = {}
@@ -134,6 +137,10 @@ for line in sys.stdin:
 
     # 0.0.0.0/0 and ::/0 aren't too useful
     if cidr == 0:
+        continue
+
+    # Check configured ignores
+    if '%s/%d' % (ip, cidr) in IGNORE:
         continue
 
     routes_loaded += 1
