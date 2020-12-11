@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # parse-bgp - convert "sh ip bgp" to ipv4-heatmap data
-# Copyright (C) 2015 Ryan Finnie
+# Copyright (C) 2015-2020 Ryan Finnie
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,25 +18,22 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-import sys
 import argparse
-import socket
+import json
 import re
+import socket
+import sys
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     parser.add_argument(
-        '--quiet', '-q', dest='quiet', action='store_true',
-        help='quiet mode',
+        "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
     )
-    parser.add_argument(
-        '--config', '-c', type=str,
-        help='configuration json',
-    )
+    parser.add_argument("--config", "-c", type=str, help="configuration json")
 
     args = parser.parse_args()
 
@@ -53,7 +50,7 @@ def bytearray_to_int(b):
 def int_to_bytearray(i, minimum=1):
     out = bytearray()
     while i >= 256:
-        out.insert(0, i & 0xff)
+        out.insert(0, i & 0xFF)
         i = i >> 8
     out.insert(0, i)
     out_len = len(out)
@@ -62,16 +59,13 @@ def int_to_bytearray(i, minimum=1):
     return out
 
 
-r_v4cidr = re.compile(r'^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?')
-r_v6cidr = re.compile(r'^\*. ([0-9a-f:]+)\/([0-9]+)')
+r_v4cidr = re.compile(r"^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?")
+r_v6cidr = re.compile(r"^\*. ([0-9a-f:]+)\/([0-9]+)")
 
 IGNORE = []
-V6_START = '2000::'
+V6_START = "2000::"
 V6_LENGTH = 4
-#V6_START = '2400::'
-#V6_LENGTH = 12
-#V6_START = '2000::'
-#V6_LENGTH = 14
+
 
 def get_match(line):
     # IPv4
@@ -84,9 +78,9 @@ def get_match(line):
         # announcements.  We need to figure out the netmask for classful
         # announcements ourselves.
         if cidr is None:
-            if int_32 >= 0xe0000000:
+            if int_32 >= 0xE0000000:
                 return (None, None, None, False)
-            elif int_32 >= 0xc0000000:
+            elif int_32 >= 0xC0000000:
                 cidr = 24
             elif int_32 >= 0x80000000:
                 cidr = 16
@@ -99,13 +93,15 @@ def get_match(line):
     match = re.match(r_v6cidr, line)
     if match is not None:
         v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
-        v6lower = v6net & (2**128 - 2**V6_LENGTH)
-        v6upper = v6lower + 2**(128-V6_LENGTH) - 1
+        v6lower = v6net & (2 ** 128 - 2 ** V6_LENGTH)
+        v6upper = v6lower + 2 ** (128 - V6_LENGTH) - 1
         (ip, cidr) = match.groups()
         v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
         if (v6int < v6lower) or (v6int > v6upper):
             return (None, None, None, True)
-        int_32 = ((v6int - v6lower) & ((2**(128-V6_LENGTH))-1)) >> (128-32-V6_LENGTH)
+        int_32 = ((v6int - v6lower) & ((2 ** (128 - V6_LENGTH)) - 1)) >> (
+            128 - 32 - V6_LENGTH
+        )
         return (ip, int(cidr), int_32, True)
     return (None, None, None, False)
 
@@ -114,15 +110,14 @@ args = parse_args()
 is_tty = sys.stderr.isatty()
 
 if args.config:
-    import json
     with open(args.config) as f:
         json_config = json.load(f)
-    if 'v6_start' in json_config:
-        V6_START = json_config['v6_start']
-    if 'v6_length' in json_config:
-        V6_LENGTH = json_config['v6_length']
-    if 'ignore' in json_config:
-        IGNORE = json_config['ignore']
+    if "v6_start" in json_config:
+        V6_START = json_config["v6_start"]
+    if "v6_length" in json_config:
+        V6_LENGTH = json_config["v6_length"]
+    if "ignore" in json_config:
+        IGNORE = json_config["ignore"]
 
 current_printed = -1
 cidr_24_dict = {}
@@ -140,18 +135,18 @@ for line in sys.stdin:
         continue
 
     # Check configured ignores
-    if '%s/%d' % (ip, cidr) in IGNORE:
+    if "%s/%d" % (ip, cidr) in IGNORE:
         continue
 
     routes_loaded += 1
     if mode_ipv6 is None:
         if is_ipv6:
             if not args.quiet:
-                print >> sys.stderr, 'IPv6 mode.'
+                print("IPv6 mode.", file=sys.stderr)
             mode_ipv6 = True
         else:
             if not args.quiet:
-                print >> sys.stderr, 'IPv4 mode.'
+                print("IPv4 mode.", file=sys.stderr)
             mode_ipv6 = False
     if is_ipv6:
         adj_cidr = cidr - V6_LENGTH
@@ -173,20 +168,25 @@ for line in sys.stdin:
     else:
         for i in range(2 ** (cidr_offset - adj_cidr)):
             int_24_masked_2 = int_24_masked + i
-            if (int_24_masked_2 not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked_2]):
+            if (int_24_masked_2 not in cidr_24_dict) or (
+                cidr > cidr_24_dict[int_24_masked_2]
+            ):
                 cidr_24_dict[int_24_masked_2] = cidr
 
     if (not args.quiet) and (is_tty):
         new_printed = int_24_masked >> 16
         if current_printed != new_printed:
-            sys.stderr.write('\r\x1b[K%s/%s' % (ip, cidr))
+            sys.stderr.write("\r\x1b[K%s/%s" % (ip, cidr))
             sys.stderr.flush()
             current_printed = new_printed
 
 if not args.quiet:
     if is_tty:
-        sys.stderr.write('\r\x1b[K')
-    print >> sys.stderr, '%d routes loaded, %d entries.' % (routes_loaded, len(cidr_24_dict))
+        sys.stderr.write("\r\x1b[K")
+    print(
+        "%d routes loaded, %d entries." % (routes_loaded, len(cidr_24_dict)),
+        file=sys.stderr,
+    )
 
 current_printed = -1
 entries_printed = 0
@@ -200,7 +200,6 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     # they have these bounds.
     if mode_ipv6:
         cidr_low = 8 + V6_LENGTH
-        #cidr_high = 64 + V6_LENGTH
         cidr_high = cidr_low + 52
     else:
         cidr_low = 8
@@ -214,22 +213,22 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     # name is IPv4-only), we pretend the entire masked 24-bit range is
     # an IPv4 network, even if it's IPv6.
     ip = int_24_masked << 8
-    ip_24 = socket.inet_ntoa(str(int_to_bytearray(ip, 4)))
+    ip_24 = socket.inet_ntoa(int_to_bytearray(ip, 4))
 
     # Range from cidr_low to cidr_high, mapped to color indexes 0-255
     color_idx = int((adjcidr - cidr_low) / float(cidr_high - cidr_low) * 255.0)
 
-    print '%s %d' % (ip_24, color_idx)
+    print("%s %d" % (ip_24, color_idx))
 
     entries_printed += 1
     if (not args.quiet) and is_tty:
         new_printed = int_24_masked >> 16
         if current_printed != new_printed:
-            sys.stderr.write('\r\x1b[K%s' % ip_24)
+            sys.stderr.write("\r\x1b[K%s" % ip_24)
             sys.stderr.flush()
             current_printed = new_printed
 
 if not args.quiet:
     if is_tty:
-        sys.stderr.write('\r\x1b[K')
-    print >> sys.stderr, '%d entries printed.' % entries_printed
+        sys.stderr.write("\r\x1b[K")
+    print("%d entries printed." % entries_printed, file=sys.stderr)

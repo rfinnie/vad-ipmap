@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # v6-to-fakev4
-# Copyright (C) 2015 Ryan Finnie
+# Copyright (C) 2015-2020 Ryan Finnie
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,24 +18,29 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-import sys
-import socket
-import re
 import argparse
+import json
+import re
+import socket
+import sys
+
+
+r_v6cidr_bare = re.compile(r"^([0-9a-f:]+)\/([0-9]+)(.*)$")
+V6_START = "2000::"
+V6_LENGTH = 4
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument(
-        '--config', '-c', type=str,
-        help='configuration json',
-    )
+    parser.add_argument("--config", "-c", type=str, help="configuration json")
 
     args = parser.parse_args()
 
     return args
+
 
 def bytearray_to_int(b):
     out = 0
@@ -43,10 +48,11 @@ def bytearray_to_int(b):
         out = (out << 8) + x
     return out
 
+
 def int_to_bytearray(i, minimum=1):
     out = bytearray()
     while i >= 256:
-        out.insert(0, i & 0xff)
+        out.insert(0, i & 0xFF)
         i = i >> 8
     out.insert(0, i)
     out_len = len(out)
@@ -54,21 +60,20 @@ def int_to_bytearray(i, minimum=1):
         out = bytearray(minimum - out_len) + out
     return out
 
-r_v6cidr_bare = re.compile(r'^([0-9a-f:]+)\/([0-9]+)(.*)$')
-V6_START = '2000::'
-V6_LENGTH = 4
 
 def get_match(line):
     match = re.match(r_v6cidr_bare, line)
     if match is not None:
         v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
-        v6lower = v6net & (2**128 - 2**V6_LENGTH)
-        v6upper = v6lower + 2**(128-V6_LENGTH) - 1
+        v6lower = v6net & (2 ** 128 - 2 ** V6_LENGTH)
+        v6upper = v6lower + 2 ** (128 - V6_LENGTH) - 1
         (ip, cidr, rest) = match.groups()
         v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
         if (v6int < v6lower) or (v6int > v6upper):
             return (None, None, None, True, line)
-        int_32 = ((v6int - v6lower) & ((2**(128-V6_LENGTH))-1)) >> (128-32-V6_LENGTH)
+        int_32 = ((v6int - v6lower) & ((2 ** (128 - V6_LENGTH)) - 1)) >> (
+            128 - 32 - V6_LENGTH
+        )
         return (ip, int(cidr), int_32, True, rest)
     return (None, None, None, False, line)
 
@@ -76,13 +81,12 @@ def get_match(line):
 args = parse_args()
 
 if args.config:
-    import json
     with open(args.config) as f:
         json_config = json.load(f)
-    if 'v6_start' in json_config:
-        V6_START = json_config['v6_start']
-    if 'v6_length' in json_config:
-        V6_LENGTH = json_config['v6_length']
+    if "v6_start" in json_config:
+        V6_START = json_config["v6_start"]
+    if "v6_length" in json_config:
+        V6_LENGTH = json_config["v6_length"]
 
 for line in sys.stdin:
     (ip, cidr, int_32, is_ipv6, rest) = get_match(line)
@@ -90,6 +94,12 @@ for line in sys.stdin:
         fakecidr = cidr - V6_LENGTH
         if fakecidr > 32:
             fakecidr = 32
-        print '%s/%s%s' % (socket.inet_ntop(socket.AF_INET, str(int_to_bytearray(int_32, 4))), fakecidr, rest)
+        print(
+            "{}/{}{}".format(
+                socket.inet_ntop(socket.AF_INET, int_to_bytearray(int_32, 4)),
+                fakecidr,
+                rest,
+            )
+        )
     else:
-        print line
+        print(line)

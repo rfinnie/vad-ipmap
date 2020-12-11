@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 # bgpdump-to-shipbgp - Convert bgpdump single-line data to "sh ip bgp"
-# Copyright (C) 2015 Ryan Finnie
+# Copyright (C) 2015-2020 Ryan Finnie
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,18 +18,17 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA.
 
-import sys
 import argparse
+import sys
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
     parser.add_argument(
-        '--quiet', '-q', dest='quiet', action='store_true',
-        help='quiet mode',
+        "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
     )
 
     args = parser.parse_args()
@@ -40,43 +39,39 @@ def parse_args():
 args = parse_args()
 is_tty = sys.stderr.isatty()
 
-print 'Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,'
-print '              r RIB-failure, S Stale'
-print 'Origin codes: i - IGP, e - EGP, ? - incomplete'
-print ''
-print '   Network            Next Hop            Metric LocPrf Weight Path'
+print("Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,")
+print("              r RIB-failure, S Stale")
+print("Origin codes: i - IGP, e - EGP, ? - incomplete")
+print()
+print("   Network            Next Hop            Metric LocPrf Weight Path")
 
 last_network = None
 lines_printed = 0
 
 for line in sys.stdin:
-    i = line.split('|')
+    i = line.split("|")
     if i[5] == last_network:
-        printable_network = ''
+        printable_network = ""
     else:
         printable_network = i[5]
         last_network = i[5]
-    if i[7] == 'IGP':
-        origin_s = 'i'
-    elif i[7] == 'EGP':
-        origin_s = 'e'
+    if i[7] == "IGP":
+        origin_s = "i"
+    elif i[7] == "EGP":
+        origin_s = "e"
     else:
-        origin_s = '?'
+        origin_s = "?"
 
-    print '*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}'.format(
-        printable_network,
-        i[3],
-        i[10],
-        i[9],
-        0,
-        i[6],
-        origin_s,
+    print(
+        "*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}".format(
+            printable_network, i[3], i[10], i[9], 0, i[6], origin_s
+        )
     )
 
     if (not args.quiet) and is_tty and ((lines_printed % 5000) == 0):
-        sys.stderr.write('\r\x1b[K%s' % i[5])
+        sys.stderr.write("\r\x1b[K%s" % i[5])
         sys.stderr.flush()
     lines_printed += 1
 
 if (not args.quiet) and is_tty:
-    sys.stderr.write('\r\x1b[K')
+    sys.stderr.write("\r\x1b[K")
