@@ -19,9 +19,9 @@
 # 02110-1301, USA.
 
 import argparse
+import ipaddress
 import json
 import re
-import socket
 import sys
 
 
@@ -42,40 +42,16 @@ def parse_args():
     return args
 
 
-def bytearray_to_int(b):
-    out = 0
-    for x in b:
-        out = (out << 8) + x
-    return out
-
-
-def int_to_bytearray(i, minimum=1):
-    out = bytearray()
-    while i >= 256:
-        out.insert(0, i & 0xFF)
-        i = i >> 8
-    out.insert(0, i)
-    out_len = len(out)
-    if out_len < minimum:
-        out = bytearray(minimum - out_len) + out
-    return out
-
-
 def get_match(line):
     match = re.match(r_v6cidr_bare, line)
-    if match is not None:
-        v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
-        v6lower = v6net & (2 ** 128 - 2 ** V6_LENGTH)
-        v6upper = v6lower + 2 ** (128 - V6_LENGTH) - 1
-        (ip, cidr, rest) = match.groups()
-        v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
-        if (v6int < v6lower) or (v6int > v6upper):
-            return (None, None, None, True, line)
-        int_32 = ((v6int - v6lower) & ((2 ** (128 - V6_LENGTH)) - 1)) >> (
-            128 - 32 - V6_LENGTH
-        )
-        return (ip, int(cidr), int_32, True, rest)
-    return (None, None, None, False, line)
+    if match is None:
+        return (None, line)
+
+    (ip, cidr, rest) = match.groups()
+    net = ipaddress.IPv6Network("{}/{}".format(ip, cidr))
+    if not net.subnet_of(V6_SUPERNET):
+        return (None, line)
+    return (net, rest)
 
 
 args = parse_args()
@@ -88,18 +64,21 @@ if args.config:
     if "v6_length" in json_config:
         V6_LENGTH = json_config["v6_length"]
 
+V6_SUPERNET = ipaddress.IPv6Network("{}/{}".format(V6_START, V6_LENGTH))
+
 for line in sys.stdin:
-    (ip, cidr, int_32, is_ipv6, rest) = get_match(line)
-    if int_32 is not None:
-        fakecidr = cidr - V6_LENGTH
+    (net, rest) = get_match(line)
+    if net is not None:
+        fakecidr = net.prefixlen - V6_LENGTH
         if fakecidr > 32:
             fakecidr = 32
-        print(
-            "{}/{}{}".format(
-                socket.inet_ntop(socket.AF_INET, int_to_bytearray(int_32, 4)),
-                fakecidr,
-                rest,
+        ip_32 = ipaddress.IPv4Address(
+            (
+                (int(net.network_address) - int(V6_SUPERNET.network_address))
+                & ((2 ** (128 - V6_LENGTH)) - 1)
             )
+            >> (128 - 32 - V6_LENGTH)
         )
+        print("{}/{}{}".format(ip_32.compressed, fakecidr, rest))
     else:
         print(line)

@@ -19,9 +19,9 @@
 # 02110-1301, USA.
 
 import argparse
+import ipaddress
 import json
 import re
-import socket
 import sys
 
 
@@ -40,25 +40,6 @@ def parse_args():
     return args
 
 
-def bytearray_to_int(b):
-    out = 0
-    for x in b:
-        out = (out << 8) + x
-    return out
-
-
-def int_to_bytearray(i, minimum=1):
-    out = bytearray()
-    while i >= 256:
-        out.insert(0, i & 0xFF)
-        i = i >> 8
-    out.insert(0, i)
-    out_len = len(out)
-    if out_len < minimum:
-        out = bytearray(minimum - out_len) + out
-    return out
-
-
 r_v4cidr = re.compile(r"^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?")
 r_v6cidr = re.compile(r"^\*. ([0-9a-f:]+)\/([0-9]+)")
 
@@ -72,38 +53,31 @@ def get_match(line):
     match = re.match(r_v4cidr, line)
     if match is not None:
         (ip, _, cidr) = match.groups()
-        int_32 = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET, ip)))
+        ip = ipaddress.IPv4Address(ip)
 
         # Some "sh ip bgp" output will only show CIDR notation for classless
         # announcements.  We need to figure out the netmask for classful
         # announcements ourselves.
         if cidr is None:
-            if int_32 >= 0xE0000000:
-                return (None, None, None, False)
-            elif int_32 >= 0xC0000000:
+            if ip in ipaddress.IPv4Network("224.0.0.0/3"):
+                return
+            elif ip in ipaddress.IPv4Network("192.0.0.0/3"):
                 cidr = 24
-            elif int_32 >= 0x80000000:
+            elif ip in ipaddress.IPv4Network("128.0.0.0/2"):
                 cidr = 16
             else:
                 cidr = 8
 
-        return (ip, int(cidr), int_32, False)
+        return ipaddress.IPv4Network("{}/{}".format(ip.compressed, cidr))
 
     # IPv6
     match = re.match(r_v6cidr, line)
     if match is not None:
-        v6net = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, V6_START)))
-        v6lower = v6net & (2 ** 128 - 2 ** V6_LENGTH)
-        v6upper = v6lower + 2 ** (128 - V6_LENGTH) - 1
         (ip, cidr) = match.groups()
-        v6int = bytearray_to_int(bytearray(socket.inet_pton(socket.AF_INET6, ip)))
-        if (v6int < v6lower) or (v6int > v6upper):
-            return (None, None, None, True)
-        int_32 = ((v6int - v6lower) & ((2 ** (128 - V6_LENGTH)) - 1)) >> (
-            128 - 32 - V6_LENGTH
-        )
-        return (ip, int(cidr), int_32, True)
-    return (None, None, None, False)
+        net = ipaddress.IPv6Network("{}/{}".format(ip, cidr))
+        if not net.subnet_of(V6_SUPERNET):
+            return
+        return net
 
 
 args = parse_args()
@@ -123,19 +97,22 @@ current_printed = -1
 cidr_24_dict = {}
 routes_loaded = 0
 mode_ipv6 = None
+V6_SUPERNET = ipaddress.IPv6Network("{}/{}".format(V6_START, V6_LENGTH))
 
 for line in sys.stdin:
     # Look for announcements
-    (ip, cidr, int_32, is_ipv6) = get_match(line)
-    if ip is None:
+    net = get_match(line)
+    if net is None:
         continue
 
-    # 0.0.0.0/0 and ::/0 aren't too useful
+    cidr = net.prefixlen
+    is_ipv6 = net.version == 6
+    # 0.0.0.0/0 and ::/0 aren't too usefuf
     if cidr == 0:
         continue
 
     # Check configured ignores
-    if "%s/%d" % (ip, cidr) in IGNORE:
+    if net.compressed in IGNORE:
         continue
 
     routes_loaded += 1
@@ -150,16 +127,20 @@ for line in sys.stdin:
             mode_ipv6 = False
     if is_ipv6:
         adj_cidr = cidr - V6_LENGTH
-        if adj_cidr < 0:
-            continue
-        if adj_cidr > 32:
-            adj_cidr = 32
-        cidr_offset = 32 - 8
-        int_24_masked = int_32 >> 8
     else:
         adj_cidr = cidr
-        cidr_offset = 32 - 8
-        int_24_masked = int_32 >> 8
+    if adj_cidr < 0:
+        continue
+    if adj_cidr > 32:
+        adj_cidr = 32
+    cidr_offset = 32 - 8
+    int_32 = int(net.network_address)
+    if is_ipv6:
+        int_32 = (
+            (int(net.network_address) - int(V6_SUPERNET.network_address))
+            & ((2 ** (128 - V6_LENGTH)) - 1)
+        ) >> (128 - 32 - V6_LENGTH)
+    int_24_masked = int_32 >> 8
 
     # If the network is smaller than the masked 24-bit destination, all
     # we need to do is put it in the destination entry.  But if it's
@@ -178,7 +159,7 @@ for line in sys.stdin:
     if (not args.quiet) and (is_tty):
         new_printed = int_24_masked >> 16
         if current_printed != new_printed:
-            sys.stderr.write("\r\x1b[K%s/%s" % (ip, cidr))
+            sys.stderr.write("\r\x1b[K{}".format(net))
             sys.stderr.flush()
             current_printed = new_printed
 
@@ -215,7 +196,7 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     # name is IPv4-only), we pretend the entire masked 24-bit range is
     # an IPv4 network, even if it's IPv6.
     ip = int_24_masked << 8
-    ip_24 = socket.inet_ntoa(int_to_bytearray(ip, 4))
+    ip_24 = ipaddress.IPv4Address(ip).compressed
 
     # Range from cidr_low to cidr_high, mapped to color indexes 0-255
     color_idx = int((adjcidr - cidr_low) / float(cidr_high - cidr_low) * 255.0)
