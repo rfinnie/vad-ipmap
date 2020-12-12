@@ -1,0 +1,61 @@
+#!/bin/sh
+
+runtest() {
+    testname="$1"
+    expected="$2"
+    got="$3"
+    if [ "${expected}" = "${got}" ]; then
+        echo "TEST OK: ${testname}"
+    else
+        echo "TEST FAILED: ${testname}"
+        echo "    Expected \"${expected}\", got \"${got}\""
+        return 1
+    fi
+}
+
+bad=0
+
+runtest \
+    "bgpdump-to-shipbgp - IPv4" \
+    "3d451228f89e500114a6cf60e5b5ee52  -" \
+    "$(bzcat .github/testdata/ipv4-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | md5sum)" \
+|| bad=1
+runtest \
+    "bgpdump-to-shipbgp - IPv6" \
+    "97a5c403ba7caafacc812d345cab715a  -" \
+    "$(bzcat .github/testdata/ipv6-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | md5sum)" \
+|| bad=1
+runtest \
+    "parse-bgp - IPv4" \
+    "057dc99624327850936378bff1b1a74d  -" \
+    "$(bzcat .github/testdata/ipv4-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp | md5sum)" \
+|| bad=1
+runtest \
+    "parse-bgp - IPv6" \
+    "3a04269c724cb5407c71310e991389fc  -" \
+    "$(bzcat .github/testdata/ipv6-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp | md5sum)" \
+|| bad=1
+runtest \
+    "parse-bgp - IPv4 - custom config" \
+    "38f279a3fddc4066762726a2182bb89f  -" \
+    "$(bzcat .github/testdata/ipv4-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv4.config.json | md5sum)" \
+|| bad=1
+runtest \
+    "parse-bgp - IPv6 - custom config" \
+    "5ade18fa846e1f035bb7d542fc907ab0  -" \
+    "$(bzcat .github/testdata/ipv6-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv6-various.config.json | md5sum)" \
+|| bad=1
+runtest \
+    "v6-to-fakev4" \
+    "bee58779ced9531997400f0aff762c89  -" \
+    "$(bzcat .github/testdata/ipv6-annotations.bz2 | bin/v6-to-fakev4 | md5sum)" \
+|| bad=1
+runtest \
+    "v6-to-fakev4 - custom config" \
+    "fe82f55482bfd8dc05c75f4dec7faf56  -" \
+    "$(bzcat .github/testdata/ipv6-various-annotations.bz2 | bin/v6-to-fakev4 -c .github/testdata/ipv6-various.config.json | md5sum)" \
+|| bad=1
+
+if [ "${bad}" = 1 ]; then
+    exit 1
+fi

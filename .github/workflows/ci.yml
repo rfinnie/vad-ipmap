@@ -1,0 +1,13 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: Dependency packages
+      run: |
+        sudo apt update
+        sudo apt -y install bzip2
+    - name: Script tests
+      run: .github/bin/script-tests
