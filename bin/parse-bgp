@@ -150,6 +150,8 @@ for line in sys.stdin:
             mode_ipv6 = False
     if is_ipv6:
         adj_cidr = cidr - V6_LENGTH
+        if adj_cidr < 0:
+            continue
         if adj_cidr > 32:
             adj_cidr = 32
         cidr_offset = 32 - 8
