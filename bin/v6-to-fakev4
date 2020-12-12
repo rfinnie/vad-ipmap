@@ -81,4 +81,4 @@ for line in sys.stdin:
         )
         print("{}/{}{}".format(ip_32.compressed, fakecidr, rest))
     else:
-        print(line)
+        print(line, end="")
