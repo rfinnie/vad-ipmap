@@ -23,6 +23,7 @@ import ipaddress
 import json
 import re
 import sys
+import time
 
 
 def parse_args():
@@ -93,7 +94,7 @@ if args.config:
     if "ignore" in json_config:
         IGNORE = json_config["ignore"]
 
-current_printed = -1
+last_status_time = time.time()
 cidr_24_dict = {}
 routes_loaded = 0
 mode_ipv6 = None
@@ -156,22 +157,22 @@ for line in sys.stdin:
             ):
                 cidr_24_dict[int_24_masked_2] = cidr
 
-    if (not args.quiet) and (is_tty):
-        new_printed = int_24_masked >> 16
-        if current_printed != new_printed:
-            sys.stderr.write("\r\x1b[K{}".format(net))
-            sys.stderr.flush()
-            current_printed = new_printed
+    now = time.time()
+    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
+        sys.stderr.write("\r\x1b[KLoading: {} ({} routes)".format(net, routes_loaded))
+        sys.stderr.flush()
+        last_status_time = now
 
+total_entries = len(cidr_24_dict)
 if not args.quiet:
     if is_tty:
         sys.stderr.write("\r\x1b[K")
     print(
-        "%d routes loaded, %d entries." % (routes_loaded, len(cidr_24_dict)),
+        "%d routes loaded, %d entries." % (routes_loaded, total_entries),
         file=sys.stderr,
     )
 
-current_printed = -1
+last_status_time = time.time()
 entries_printed = 0
 
 for int_24_masked in sorted(cidr_24_dict.keys()):
@@ -204,12 +205,15 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
     print("%s %d" % (ip_24, color_idx))
 
     entries_printed += 1
-    if (not args.quiet) and is_tty:
-        new_printed = int_24_masked >> 16
-        if current_printed != new_printed:
-            sys.stderr.write("\r\x1b[K%s" % ip_24)
-            sys.stderr.flush()
-            current_printed = new_printed
+    now = time.time()
+    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
+        sys.stderr.write(
+            "\r\x1b[KPrinting: {} ({:.0%})".format(
+                ip_24, (entries_printed / total_entries)
+            )
+        )
+        sys.stderr.flush()
+        last_status_time = now
 
 if not args.quiet:
     if is_tty:

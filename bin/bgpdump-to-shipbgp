@@ -20,6 +20,7 @@
 
 import argparse
 import sys
+import time
 
 
 def parse_args():
@@ -47,6 +48,7 @@ print("   Network            Next Hop            Metric LocPrf Weight Path")
 
 last_network = None
 lines_printed = 0
+last_status_time = time.time()
 
 for line in sys.stdin:
     i = line.split("|")
@@ -67,11 +69,15 @@ for line in sys.stdin:
             printable_network, i[3], i[10], i[9], 0, i[6], origin_s
         )
     )
-
-    if (not args.quiet) and is_tty and ((lines_printed % 5000) == 0):
-        sys.stderr.write("\r\x1b[K%s" % i[5])
-        sys.stderr.flush()
     lines_printed += 1
+
+    now = time.time()
+    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
+        sys.stderr.write(
+            "\r\x1b[KConverting: {} ({} lines)".format(i[5], lines_printed)
+        )
+        sys.stderr.flush()
+        last_status_time = now
 
 if (not args.quiet) and is_tty:
     sys.stderr.write("\r\x1b[K")
