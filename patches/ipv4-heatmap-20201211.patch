@@ -1,0 +1,309 @@
+diff --git a/annotate.c b/annotate.c
+index d4769ef..c04fcfe 100644
+--- a/annotate.c
++++ b/annotate.c
+@@ -24,7 +24,7 @@
+  * FONT_ALPHA sets the transparency for the annotations. in libgd, 0 means 100%
+  * transparent, and 127 means 100% opaque.
+  */
+-#define FONT_ALPHA 75
++#define FONT_ALPHA 48
+ 
+ int annotateColor = -1;
+ 
+@@ -49,7 +49,7 @@ annotate_cidr(gdImagePtr image, const char *cidr, const char *label, const char
+ 	box2.ymax = box2.ymin + 24;
+ 	if (0 == strcmp(sublabel, "prefix"))
+ 	    sublabel = cidr;
+-	text_in_bbox(image, sublabel, box2, annotateColor, 12.0);
++	text_in_bbox(image, sublabel, box2, annotateColor, 24.0);
+     }
+ }
+ 
+diff --git a/ipv4-heatmap.c b/ipv4-heatmap.c
+index e7bbe7b..5d7d8f1 100644
+--- a/ipv4-heatmap.c
++++ b/ipv4-heatmap.c
+@@ -83,7 +83,6 @@ double log_C = 0.0;
+ static void
+ initialize(void)
+ {
+-    int i;
+     int w;
+     int h;
+     int order = set_order();
+@@ -116,17 +115,264 @@ initialize(void)
+ 	gdImageFill(image, 0, 0, gdImageColorAllocate(image, 255, 255, 255));
+ 
+     /*
+-     * The default color map ranges from red to blue
++     * The default color map ranges from purple to yellow (CubeYF)
+      */
+-    for (i = 0; i < NUM_DATA_COLORS; i++) {
+-	double hue;
+-	double r, g, b;
+-	hue = 240.0 * (255 - i) / 255;
+-	PIX_HSV_TO_RGB_COMMON(hue, 1.0, 1.0, r, g, b);
+-	colors[i] = gdImageColorAllocate(image, r, g, b);
+-	if (debug > 1)
+-	    fprintf(stderr, "colors[%d]=%d\n", i, colors[i]);
+-    }
++    colors[0] = gdImageColorAllocate(image, 123, 2, 144);
++    colors[1] = gdImageColorAllocate(image, 123, 3, 146);
++    colors[2] = gdImageColorAllocate(image, 124, 4, 149);
++    colors[3] = gdImageColorAllocate(image, 125, 5, 151);
++    colors[4] = gdImageColorAllocate(image, 126, 6, 153);
++    colors[5] = gdImageColorAllocate(image, 127, 7, 156);
++    colors[6] = gdImageColorAllocate(image, 128, 8, 158);
++    colors[7] = gdImageColorAllocate(image, 129, 9, 160);
++    colors[8] = gdImageColorAllocate(image, 129, 10, 163);
++    colors[9] = gdImageColorAllocate(image, 130, 11, 165);
++    colors[10] = gdImageColorAllocate(image, 131, 12, 168);
++    colors[11] = gdImageColorAllocate(image, 131, 12, 171);
++    colors[12] = gdImageColorAllocate(image, 132, 12, 174);
++    colors[13] = gdImageColorAllocate(image, 133, 13, 177);
++    colors[14] = gdImageColorAllocate(image, 133, 15, 179);
++    colors[15] = gdImageColorAllocate(image, 134, 17, 181);
++    colors[16] = gdImageColorAllocate(image, 134, 19, 184);
++    colors[17] = gdImageColorAllocate(image, 134, 21, 186);
++    colors[18] = gdImageColorAllocate(image, 134, 24, 188);
++    colors[19] = gdImageColorAllocate(image, 134, 26, 190);
++    colors[20] = gdImageColorAllocate(image, 134, 29, 192);
++    colors[21] = gdImageColorAllocate(image, 134, 31, 194);
++    colors[22] = gdImageColorAllocate(image, 134, 34, 196);
++    colors[23] = gdImageColorAllocate(image, 134, 36, 198);
++    colors[24] = gdImageColorAllocate(image, 133, 39, 200);
++    colors[25] = gdImageColorAllocate(image, 133, 41, 203);
++    colors[26] = gdImageColorAllocate(image, 133, 43, 204);
++    colors[27] = gdImageColorAllocate(image, 133, 45, 206);
++    colors[28] = gdImageColorAllocate(image, 132, 47, 208);
++    colors[29] = gdImageColorAllocate(image, 132, 49, 210);
++    colors[30] = gdImageColorAllocate(image, 132, 51, 212);
++    colors[31] = gdImageColorAllocate(image, 131, 53, 214);
++    colors[32] = gdImageColorAllocate(image, 131, 55, 216);
++    colors[33] = gdImageColorAllocate(image, 130, 56, 218);
++    colors[34] = gdImageColorAllocate(image, 130, 58, 219);
++    colors[35] = gdImageColorAllocate(image, 129, 60, 221);
++    colors[36] = gdImageColorAllocate(image, 129, 62, 223);
++    colors[37] = gdImageColorAllocate(image, 128, 64, 224);
++    colors[38] = gdImageColorAllocate(image, 128, 66, 226);
++    colors[39] = gdImageColorAllocate(image, 127, 68, 228);
++    colors[40] = gdImageColorAllocate(image, 127, 69, 230);
++    colors[41] = gdImageColorAllocate(image, 126, 71, 232);
++    colors[42] = gdImageColorAllocate(image, 125, 72, 234);
++    colors[43] = gdImageColorAllocate(image, 125, 74, 235);
++    colors[44] = gdImageColorAllocate(image, 122, 77, 238);
++    colors[45] = gdImageColorAllocate(image, 121, 78, 240);
++    colors[46] = gdImageColorAllocate(image, 120, 80, 241);
++    colors[47] = gdImageColorAllocate(image, 119, 81, 242);
++    colors[48] = gdImageColorAllocate(image, 118, 83, 244);
++    colors[49] = gdImageColorAllocate(image, 117, 84, 245);
++    colors[50] = gdImageColorAllocate(image, 117, 86, 247);
++    colors[51] = gdImageColorAllocate(image, 115, 87, 248);
++    colors[52] = gdImageColorAllocate(image, 115, 89, 250);
++    colors[53] = gdImageColorAllocate(image, 114, 90, 251);
++    colors[54] = gdImageColorAllocate(image, 113, 91, 251);
++    colors[55] = gdImageColorAllocate(image, 113, 92, 252);
++    colors[56] = gdImageColorAllocate(image, 112, 94, 252);
++    colors[57] = gdImageColorAllocate(image, 111, 95, 252);
++    colors[58] = gdImageColorAllocate(image, 110, 97, 253);
++    colors[59] = gdImageColorAllocate(image, 110, 98, 253);
++    colors[60] = gdImageColorAllocate(image, 109, 100, 253);
++    colors[61] = gdImageColorAllocate(image, 108, 101, 254);
++    colors[62] = gdImageColorAllocate(image, 108, 103, 254);
++    colors[63] = gdImageColorAllocate(image, 106, 104, 254);
++    colors[64] = gdImageColorAllocate(image, 106, 106, 254);
++    colors[65] = gdImageColorAllocate(image, 105, 107, 255);
++    colors[66] = gdImageColorAllocate(image, 105, 108, 255);
++    colors[67] = gdImageColorAllocate(image, 104, 110, 255);
++    colors[68] = gdImageColorAllocate(image, 104, 112, 254);
++    colors[69] = gdImageColorAllocate(image, 104, 113, 254);
++    colors[70] = gdImageColorAllocate(image, 103, 115, 253);
++    colors[71] = gdImageColorAllocate(image, 103, 116, 253);
++    colors[72] = gdImageColorAllocate(image, 102, 118, 252);
++    colors[73] = gdImageColorAllocate(image, 101, 119, 251);
++    colors[74] = gdImageColorAllocate(image, 100, 120, 250);
++    colors[75] = gdImageColorAllocate(image, 99, 122, 249);
++    colors[76] = gdImageColorAllocate(image, 98, 124, 248);
++    colors[77] = gdImageColorAllocate(image, 97, 126, 246);
++    colors[78] = gdImageColorAllocate(image, 97, 128, 245);
++    colors[79] = gdImageColorAllocate(image, 96, 130, 244);
++    colors[80] = gdImageColorAllocate(image, 95, 131, 243);
++    colors[81] = gdImageColorAllocate(image, 94, 132, 242);
++    colors[82] = gdImageColorAllocate(image, 93, 134, 241);
++    colors[83] = gdImageColorAllocate(image, 92, 135, 240);
++    colors[84] = gdImageColorAllocate(image, 91, 136, 239);
++    colors[85] = gdImageColorAllocate(image, 90, 137, 238);
++    colors[86] = gdImageColorAllocate(image, 90, 138, 237);
++    colors[87] = gdImageColorAllocate(image, 89, 139, 236);
++    colors[88] = gdImageColorAllocate(image, 88, 141, 234);
++    colors[89] = gdImageColorAllocate(image, 87, 142, 233);
++    colors[90] = gdImageColorAllocate(image, 86, 143, 232);
++    colors[91] = gdImageColorAllocate(image, 85, 144, 231);
++    colors[92] = gdImageColorAllocate(image, 84, 145, 230);
++    colors[93] = gdImageColorAllocate(image, 84, 147, 228);
++    colors[94] = gdImageColorAllocate(image, 82, 148, 227);
++    colors[95] = gdImageColorAllocate(image, 82, 150, 225);
++    colors[96] = gdImageColorAllocate(image, 81, 151, 224);
++    colors[97] = gdImageColorAllocate(image, 80, 152, 223);
++    colors[98] = gdImageColorAllocate(image, 79, 153, 222);
++    colors[99] = gdImageColorAllocate(image, 78, 154, 221);
++    colors[100] = gdImageColorAllocate(image, 77, 156, 219);
++    colors[101] = gdImageColorAllocate(image, 76, 157, 218);
++    colors[102] = gdImageColorAllocate(image, 76, 158, 217);
++    colors[103] = gdImageColorAllocate(image, 75, 159, 216);
++    colors[104] = gdImageColorAllocate(image, 74, 160, 215);
++    colors[105] = gdImageColorAllocate(image, 73, 161, 214);
++    colors[106] = gdImageColorAllocate(image, 72, 163, 212);
++    colors[107] = gdImageColorAllocate(image, 71, 164, 211);
++    colors[108] = gdImageColorAllocate(image, 70, 165, 210);
++    colors[109] = gdImageColorAllocate(image, 69, 167, 208);
++    colors[110] = gdImageColorAllocate(image, 67, 169, 205);
++    colors[111] = gdImageColorAllocate(image, 66, 170, 203);
++    colors[112] = gdImageColorAllocate(image, 65, 171, 202);
++    colors[113] = gdImageColorAllocate(image, 64, 172, 200);
++    colors[114] = gdImageColorAllocate(image, 64, 173, 199);
++    colors[115] = gdImageColorAllocate(image, 63, 174, 197);
++    colors[116] = gdImageColorAllocate(image, 62, 175, 196);
++    colors[117] = gdImageColorAllocate(image, 61, 176, 195);
++    colors[118] = gdImageColorAllocate(image, 60, 177, 193);
++    colors[119] = gdImageColorAllocate(image, 60, 178, 191);
++    colors[120] = gdImageColorAllocate(image, 59, 179, 190);
++    colors[121] = gdImageColorAllocate(image, 58, 180, 189);
++    colors[122] = gdImageColorAllocate(image, 57, 181, 187);
++    colors[123] = gdImageColorAllocate(image, 56, 182, 185);
++    colors[124] = gdImageColorAllocate(image, 56, 182, 184);
++    colors[125] = gdImageColorAllocate(image, 55, 184, 182);
++    colors[126] = gdImageColorAllocate(image, 55, 184, 181);
++    colors[127] = gdImageColorAllocate(image, 56, 185, 179);
++    colors[128] = gdImageColorAllocate(image, 57, 186, 177);
++    colors[129] = gdImageColorAllocate(image, 57, 187, 176);
++    colors[130] = gdImageColorAllocate(image, 58, 188, 175);
++    colors[131] = gdImageColorAllocate(image, 58, 188, 173);
++    colors[132] = gdImageColorAllocate(image, 59, 189, 171);
++    colors[133] = gdImageColorAllocate(image, 59, 190, 170);
++    colors[134] = gdImageColorAllocate(image, 60, 191, 168);
++    colors[135] = gdImageColorAllocate(image, 61, 192, 166);
++    colors[136] = gdImageColorAllocate(image, 61, 192, 164);
++    colors[137] = gdImageColorAllocate(image, 62, 193, 163);
++    colors[138] = gdImageColorAllocate(image, 62, 193, 161);
++    colors[139] = gdImageColorAllocate(image, 63, 194, 159);
++    colors[140] = gdImageColorAllocate(image, 64, 195, 158);
++    colors[141] = gdImageColorAllocate(image, 64, 196, 156);
++    colors[142] = gdImageColorAllocate(image, 65, 197, 153);
++    colors[143] = gdImageColorAllocate(image, 66, 198, 150);
++    colors[144] = gdImageColorAllocate(image, 67, 199, 148);
++    colors[145] = gdImageColorAllocate(image, 67, 200, 147);
++    colors[146] = gdImageColorAllocate(image, 68, 201, 145);
++    colors[147] = gdImageColorAllocate(image, 69, 202, 143);
++    colors[148] = gdImageColorAllocate(image, 69, 202, 141);
++    colors[149] = gdImageColorAllocate(image, 70, 203, 140);
++    colors[150] = gdImageColorAllocate(image, 70, 203, 138);
++    colors[151] = gdImageColorAllocate(image, 70, 204, 136);
++    colors[152] = gdImageColorAllocate(image, 71, 205, 134);
++    colors[153] = gdImageColorAllocate(image, 71, 205, 133);
++    colors[154] = gdImageColorAllocate(image, 72, 206, 131);
++    colors[155] = gdImageColorAllocate(image, 72, 207, 129);
++    colors[156] = gdImageColorAllocate(image, 73, 208, 128);
++    colors[157] = gdImageColorAllocate(image, 73, 208, 126);
++    colors[158] = gdImageColorAllocate(image, 74, 209, 124);
++    colors[159] = gdImageColorAllocate(image, 75, 210, 122);
++    colors[160] = gdImageColorAllocate(image, 75, 210, 120);
++    colors[161] = gdImageColorAllocate(image, 76, 211, 118);
++    colors[162] = gdImageColorAllocate(image, 76, 211, 116);
++    colors[163] = gdImageColorAllocate(image, 77, 212, 114);
++    colors[164] = gdImageColorAllocate(image, 77, 212, 113);
++    colors[165] = gdImageColorAllocate(image, 78, 213, 111);
++    colors[166] = gdImageColorAllocate(image, 79, 214, 109);
++    colors[167] = gdImageColorAllocate(image, 79, 214, 107);
++    colors[168] = gdImageColorAllocate(image, 80, 215, 106);
++    colors[169] = gdImageColorAllocate(image, 80, 215, 104);
++    colors[170] = gdImageColorAllocate(image, 81, 216, 102);
++    colors[171] = gdImageColorAllocate(image, 82, 217, 101);
++    colors[172] = gdImageColorAllocate(image, 82, 217, 100);
++    colors[173] = gdImageColorAllocate(image, 83, 218, 98);
++    colors[174] = gdImageColorAllocate(image, 84, 219, 95);
++    colors[175] = gdImageColorAllocate(image, 85, 220, 92);
++    colors[176] = gdImageColorAllocate(image, 86, 220, 90);
++    colors[177] = gdImageColorAllocate(image, 87, 221, 88);
++    colors[178] = gdImageColorAllocate(image, 88, 222, 87);
++    colors[179] = gdImageColorAllocate(image, 88, 222, 85);
++    colors[180] = gdImageColorAllocate(image, 89, 223, 84);
++    colors[181] = gdImageColorAllocate(image, 89, 223, 82);
++    colors[182] = gdImageColorAllocate(image, 89, 224, 81);
++    colors[183] = gdImageColorAllocate(image, 90, 225, 80);
++    colors[184] = gdImageColorAllocate(image, 90, 225, 79);
++    colors[185] = gdImageColorAllocate(image, 91, 226, 78);
++    colors[186] = gdImageColorAllocate(image, 91, 226, 76);
++    colors[187] = gdImageColorAllocate(image, 92, 227, 74);
++    colors[188] = gdImageColorAllocate(image, 92, 227, 73);
++    colors[189] = gdImageColorAllocate(image, 93, 228, 71);
++    colors[190] = gdImageColorAllocate(image, 95, 229, 71);
++    colors[191] = gdImageColorAllocate(image, 96, 229, 71);
++    colors[192] = gdImageColorAllocate(image, 98, 229, 72);
++    colors[193] = gdImageColorAllocate(image, 99, 229, 72);
++    colors[194] = gdImageColorAllocate(image, 101, 230, 72);
++    colors[195] = gdImageColorAllocate(image, 103, 230, 73);
++    colors[196] = gdImageColorAllocate(image, 104, 231, 73);
++    colors[197] = gdImageColorAllocate(image, 106, 231, 74);
++    colors[198] = gdImageColorAllocate(image, 108, 231, 74);
++    colors[199] = gdImageColorAllocate(image, 110, 232, 75);
++    colors[200] = gdImageColorAllocate(image, 111, 232, 75);
++    colors[201] = gdImageColorAllocate(image, 113, 232, 76);
++    colors[202] = gdImageColorAllocate(image, 115, 233, 77);
++    colors[203] = gdImageColorAllocate(image, 116, 233, 77);
++    colors[204] = gdImageColorAllocate(image, 118, 233, 77);
++    colors[205] = gdImageColorAllocate(image, 120, 233, 77);
++    colors[206] = gdImageColorAllocate(image, 123, 233, 78);
++    colors[207] = gdImageColorAllocate(image, 126, 233, 79);
++    colors[208] = gdImageColorAllocate(image, 130, 234, 80);
++    colors[209] = gdImageColorAllocate(image, 132, 235, 80);
++    colors[210] = gdImageColorAllocate(image, 134, 235, 80);
++    colors[211] = gdImageColorAllocate(image, 136, 235, 81);
++    colors[212] = gdImageColorAllocate(image, 138, 235, 81);
++    colors[213] = gdImageColorAllocate(image, 140, 235, 82);
++    colors[214] = gdImageColorAllocate(image, 142, 235, 82);
++    colors[215] = gdImageColorAllocate(image, 145, 235, 82);
++    colors[216] = gdImageColorAllocate(image, 147, 236, 83);
++    colors[217] = gdImageColorAllocate(image, 149, 236, 83);
++    colors[218] = gdImageColorAllocate(image, 152, 236, 84);
++    colors[219] = gdImageColorAllocate(image, 154, 236, 84);
++    colors[220] = gdImageColorAllocate(image, 156, 236, 84);
++    colors[221] = gdImageColorAllocate(image, 159, 236, 85);
++    colors[222] = gdImageColorAllocate(image, 161, 236, 85);
++    colors[223] = gdImageColorAllocate(image, 163, 236, 85);
++    colors[224] = gdImageColorAllocate(image, 164, 236, 85);
++    colors[225] = gdImageColorAllocate(image, 165, 236, 85);
++    colors[226] = gdImageColorAllocate(image, 166, 236, 86);
++    colors[227] = gdImageColorAllocate(image, 168, 236, 86);
++    colors[228] = gdImageColorAllocate(image, 171, 236, 86);
++    colors[229] = gdImageColorAllocate(image, 172, 236, 86);
++    colors[230] = gdImageColorAllocate(image, 173, 236, 86);
++    colors[231] = gdImageColorAllocate(image, 174, 236, 86);
++    colors[232] = gdImageColorAllocate(image, 176, 236, 87);
++    colors[233] = gdImageColorAllocate(image, 178, 236, 87);
++    colors[234] = gdImageColorAllocate(image, 180, 236, 87);
++    colors[235] = gdImageColorAllocate(image, 180, 236, 87);
++    colors[236] = gdImageColorAllocate(image, 182, 236, 87);
++    colors[237] = gdImageColorAllocate(image, 183, 236, 88);
++    colors[238] = gdImageColorAllocate(image, 184, 236, 88);
++    colors[239] = gdImageColorAllocate(image, 184, 236, 88);
++    colors[240] = gdImageColorAllocate(image, 187, 236, 88);
++    colors[241] = gdImageColorAllocate(image, 189, 236, 88);
++    colors[242] = gdImageColorAllocate(image, 191, 236, 89);
++    colors[243] = gdImageColorAllocate(image, 192, 236, 89);
++    colors[244] = gdImageColorAllocate(image, 192, 236, 89);
++    colors[245] = gdImageColorAllocate(image, 194, 236, 89);
++    colors[246] = gdImageColorAllocate(image, 197, 236, 89);
++    colors[247] = gdImageColorAllocate(image, 199, 236, 90);
++    colors[248] = gdImageColorAllocate(image, 200, 236, 90);
++    colors[249] = gdImageColorAllocate(image, 201, 236, 90);
++    colors[250] = gdImageColorAllocate(image, 202, 236, 90);
++    colors[251] = gdImageColorAllocate(image, 204, 236, 90);
++    colors[252] = gdImageColorAllocate(image, 204, 236, 90);
++    colors[253] = gdImageColorAllocate(image, 205, 236, 90);
++    colors[254] = gdImageColorAllocate(image, 207, 236, 91);
++    colors[255] = gdImageColorAllocate(image, 209, 235, 91);
+ 
+     /*
+      * If the input data should be logarithmically scaled, then calculate the
