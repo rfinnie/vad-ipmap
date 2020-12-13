@@ -104,7 +104,6 @@ for line in sys.stdin:
         continue
 
     cidr = net.prefixlen
-    is_ipv6 = net.version == 6
     # 0.0.0.0/0 and ::/0 aren't too usefuf
     if cidr == 0:
         continue
@@ -115,7 +114,7 @@ for line in sys.stdin:
 
     routes_loaded += 1
     if mode_ipv6 is None:
-        if is_ipv6:
+        if net.version == 6:
             if not args.quiet:
                 print("IPv6 mode.", file=sys.stderr)
             mode_ipv6 = True
@@ -123,7 +122,7 @@ for line in sys.stdin:
             if not args.quiet:
                 print("IPv4 mode.", file=sys.stderr)
             mode_ipv6 = False
-    if is_ipv6:
+    if mode_ipv6:
         adj_cidr = cidr - V6_LENGTH
     else:
         adj_cidr = cidr
@@ -133,7 +132,7 @@ for line in sys.stdin:
         adj_cidr = 32
     cidr_offset = 32 - 8
     int_32 = int(net.network_address)
-    if is_ipv6:
+    if mode_ipv6:
         int_32 = (
             (int(net.network_address) - int(V6_SUPERNET.network_address))
             & ((2 ** (128 - V6_LENGTH)) - 1)
@@ -165,41 +164,42 @@ if not args.quiet:
     if is_tty:
         sys.stderr.write("\r\x1b[K")
     print(
-        "%d routes loaded, %d entries." % (routes_loaded, total_entries),
+        "{} routes loaded, {} entries.".format(routes_loaded, total_entries),
         file=sys.stderr,
     )
 
 last_status_time = time.time()
 entries_printed = 0
 
+if mode_ipv6:
+    cidr_low = 8 + V6_LENGTH
+    cidr_high = cidr_low + 52
+else:
+    cidr_low = 8
+    cidr_high = 32
+
 for int_24_masked in sorted(cidr_24_dict.keys()):
     cidr = cidr_24_dict[int_24_masked]
-    adjcidr = cidr
 
     # Currently no announcements are outside these bounds (/12 - /64 for
     # IPv6, /8 - /32 for IPv4), but if they ever do, we want to pretend
     # they have these bounds.
-    if mode_ipv6:
-        cidr_low = 8 + V6_LENGTH
-        cidr_high = cidr_low + 52
-    else:
-        cidr_low = 8
-        cidr_high = 32
     if cidr > cidr_high:
         adjcidr = cidr_high
     elif cidr < cidr_low:
         adjcidr = cidr_low
+    else:
+        adjcidr = cidr
 
     # Since this output is for feeding into ipv4-heatmap (which by its
     # name is IPv4-only), we pretend the entire masked 24-bit range is
     # an IPv4 network, even if it's IPv6.
-    ip = int_24_masked << 8
-    ip_24 = ipaddress.IPv4Address(ip).compressed
+    ip_24 = ipaddress.IPv4Address(int_24_masked << 8).compressed
 
     # Range from cidr_low to cidr_high, mapped to color indexes 0-255
     color_idx = int((adjcidr - cidr_low) / float(cidr_high - cidr_low) * 255.0)
 
-    print("%s %d" % (ip_24, color_idx))
+    print("{} {}".format(ip_24, color_idx))
 
     entries_printed += 1
     now = time.time()
@@ -215,4 +215,4 @@ for int_24_masked in sorted(cidr_24_dict.keys()):
 if not args.quiet:
     if is_tty:
         sys.stderr.write("\r\x1b[K")
-    print("%d entries printed." % entries_printed, file=sys.stderr)
+    print("{} entries printed.".format(entries_printed), file=sys.stderr)

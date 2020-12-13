@@ -51,22 +51,22 @@ lines_printed = 0
 last_status_time = time.time()
 
 for line in sys.stdin:
-    i = line.split("|")
-    if i[5] == last_network:
+    items = line.split("|")
+    if items[5] == last_network:
         printable_network = ""
     else:
-        printable_network = i[5]
-        last_network = i[5]
-    if i[7] == "IGP":
+        printable_network = items[5]
+        last_network = items[5]
+    if items[7] == "IGP":
         origin_s = "i"
-    elif i[7] == "EGP":
+    elif items[7] == "EGP":
         origin_s = "e"
     else:
         origin_s = "?"
 
     print(
         "*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}".format(
-            printable_network, i[3], i[10], i[9], 0, i[6], origin_s
+            printable_network, items[3], items[10], items[9], 0, items[6], origin_s
         )
     )
     lines_printed += 1
@@ -74,7 +74,7 @@ for line in sys.stdin:
     now = time.time()
     if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
         sys.stderr.write(
-            "\r\x1b[KConverting: {} ({} lines)".format(i[5], lines_printed)
+            "\r\x1b[KConverting: {} ({} lines)".format(items[5], lines_printed)
         )
         sys.stderr.flush()
         last_status_time = now
