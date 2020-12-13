@@ -41,8 +41,7 @@ def parse_args():
     return args
 
 
-r_v4cidr = re.compile(r"^\*. ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)(\/([0-9]+))?")
-r_v6cidr = re.compile(r"^\*. ([0-9a-f:]+)\/([0-9]+)")
+r_v46cidr = re.compile(r"^\*. ([0-9a-f:\.]+)(\/([0-9]+))?")
 
 IGNORE = []
 V6_START = "2000::"
@@ -50,35 +49,33 @@ V6_LENGTH = 4
 
 
 def get_match(line):
-    # IPv4
-    match = re.match(r_v4cidr, line)
-    if match is not None:
-        (ip, _, cidr) = match.groups()
-        ip = ipaddress.IPv4Address(ip)
+    match = re.match(r_v46cidr, line)
+    if match is None:
+        return
 
-        # Some "sh ip bgp" output will only show CIDR notation for classless
-        # announcements.  We need to figure out the netmask for classful
-        # announcements ourselves.
-        if cidr is None:
-            if ip in ipaddress.IPv4Network("224.0.0.0/3"):
-                return
-            elif ip in ipaddress.IPv4Network("192.0.0.0/3"):
-                cidr = 24
-            elif ip in ipaddress.IPv4Network("128.0.0.0/2"):
-                cidr = 16
-            else:
-                cidr = 8
+    (ip, _, cidr) = match.groups()
+    ip = ipaddress.ip_address(ip)
 
-        return ipaddress.IPv4Network("{}/{}".format(ip.compressed, cidr))
-
-    # IPv6
-    match = re.match(r_v6cidr, line)
-    if match is not None:
-        (ip, cidr) = match.groups()
-        net = ipaddress.IPv6Network("{}/{}".format(ip, cidr))
-        if not net.subnet_of(V6_SUPERNET):
+    # Some "sh ip bgp" output will only show CIDR notation for classless
+    # announcements.  We need to figure out the netmask for classful
+    # announcements ourselves.
+    if cidr is None:
+        if ip.version == 6:
             return
-        return net
+        if ip in ipaddress.IPv4Network("224.0.0.0/3"):
+            return
+        elif ip in ipaddress.IPv4Network("192.0.0.0/3"):
+            cidr = 24
+        elif ip in ipaddress.IPv4Network("128.0.0.0/2"):
+            cidr = 16
+        else:
+            cidr = 8
+
+    net = ipaddress.ip_network("{}/{}".format(ip, cidr))
+
+    if (net.version == 6) and (not net.subnet_of(V6_SUPERNET)):
+        return
+    return net
 
 
 args = parse_args()
