@@ -99,11 +99,9 @@ class V6toFakeV4:
                 adj_cidr = 32
             ip_32 = ipaddress.IPv4Address(
                 (int(net.network_address) - int(self.supernet.network_address))
-                >> (
-                self.supernet.max_prefixlen
-                - self.supernet.prefixlen
-                - self.output_space
-                ) << (32 - self.output_space)
+                << self.supernet.prefixlen
+                >> (self.supernet.max_prefixlen - self.output_space)
+                << (32 - self.output_space)
             )
             print("{}/{}{}".format(ip_32.compressed, adj_cidr, rest))
 

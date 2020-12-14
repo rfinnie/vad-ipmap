@@ -144,11 +144,9 @@ class ParseBGP:
             if adj_cidr > 32:
                 adj_cidr = 32
             int_masked = (
-                int(net.network_address) - int(self.supernet.network_address)
-            ) >> (
-                self.supernet.max_prefixlen
-                - self.supernet.prefixlen
-                - self.output_space
+                (int(net.network_address) - int(self.supernet.network_address))
+                << self.supernet.prefixlen
+                >> (self.supernet.max_prefixlen - self.output_space)
             )
 
             routes_loaded += 1
