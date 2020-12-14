@@ -4,5 +4,7 @@ sources/*.rib.bz2
 png/*.png
 bin/ipv4-heatmap
 bin/bgpdump
-heatmap-data/ipv6-*.annotations
-heatmap-data/ipv6-*.shade
+heatmap-data/*.annotations
+heatmap-data/*.shade
+heatmap-data/*.in
+heatmap-data/*.yaml

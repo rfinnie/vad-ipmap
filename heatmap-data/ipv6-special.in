@@ -1,5 +1,0 @@
-http://www.iana.org/assignments/ipv6-unicast-address-assignments/ipv6-unicast-address-assignments.xhtml
-
-*  2001:0000::/23    # reserved for IETF Protocol Assignments [RFC2928]
-*  2001:3c00::/22    # reserved for possible future allocation to the RIPE NCC
-*  2002:0000::/16    # reserved for 6to4 [RFC3056]
