@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# v6-to-fakev4
+# build-fakev4
 # Copyright (C) 2015-2020 Ryan Finnie
 #
 # This program is free software; you can redistribute it and/or
@@ -29,7 +29,9 @@ import yaml
 class V6toFakeV4:
     args = None
     config = None
-    r_v6cidr_bare = re.compile(r"^([0-9a-f:]+)\/([0-9]+)(.*)$")
+    r_v46cidr_bare = re.compile(r"^([0-9a-f:\.]+)\/([0-9]+)(.*)$")
+    supernet = None
+    output_space = 24  # Size of image output space, in bits
 
     def parse_args(self):
         parser = argparse.ArgumentParser(
@@ -46,41 +48,64 @@ class V6toFakeV4:
             with open(self.args.config) as f:
                 yaml_config = yaml.safe_load(f)
 
+            if "v4_supernet" in yaml_config:
+                self.config["v4_supernet"] = ipaddress.IPv4Network(
+                    yaml_config["v4_supernet"]
+                )
             if "v6_supernet" in yaml_config:
                 self.config["v6_supernet"] = ipaddress.IPv6Network(
                     yaml_config["v6_supernet"]
                 )
 
+        if "v4_supernet" not in self.config:
+            self.config["v4_supernet"] = ipaddress.IPv4Network("0.0.0.0/0")
         if "v6_supernet" not in self.config:
             self.config["v6_supernet"] = ipaddress.IPv6Network("2000::/4")
 
     def get_match(self, line):
-        match = re.match(self.r_v6cidr_bare, line)
+        match = re.match(self.r_v46cidr_bare, line)
         if match is None:
             return (None, line)
 
         (ip, cidr, rest) = match.groups()
-        return (ipaddress.IPv6Network("{}/{}".format(ip, cidr)), rest)
+        return (ipaddress.ip_network("{}/{}".format(ip, cidr)), rest)
 
     def main(self):
         self.parse_args()
         self.parse_config()
-        supernet = self.config["v6_supernet"]
 
         for line in sys.stdin:
             (net, rest) = self.get_match(line)
-            if (net is None) or (not net.subnet_of(self.config["v6_supernet"])):
+            if net is None:
                 print(line, end="")
                 continue
 
-            fakecidr = net.prefixlen - supernet.prefixlen
-            if fakecidr > 32:
-                fakecidr = 32
+            if self.supernet is None:
+                if net.version == 6:
+                    self.supernet = self.config["v6_supernet"]
+                else:
+                    self.supernet = self.config["v4_supernet"]
+
+            if not net.subnet_of(self.supernet):
+                print(line, end="")
+                continue
+
+            cidr = net.prefixlen
+            adj_cidr = cidr - self.supernet.prefixlen
+            if adj_cidr < 0:
+                print(line, end="")
+                continue
+            if adj_cidr > 32:
+                adj_cidr = 32
             ip_32 = ipaddress.IPv4Address(
-                (int(net.network_address) - int(supernet.network_address))
-                >> (supernet.max_prefixlen - supernet.prefixlen - 32)
+                (int(net.network_address) - int(self.supernet.network_address))
+                >> (
+                self.supernet.max_prefixlen
+                - self.supernet.prefixlen
+                - self.output_space
+                ) << (32 - self.output_space)
             )
-            print("{}/{}{}".format(ip_32.compressed, fakecidr, rest))
+            print("{}/{}{}".format(ip_32.compressed, adj_cidr, rest))
 
 
 if __name__ == "__main__":
