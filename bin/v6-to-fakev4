@@ -20,65 +20,68 @@
 
 import argparse
 import ipaddress
-import json
 import re
 import sys
 
-
-r_v6cidr_bare = re.compile(r"^([0-9a-f:]+)\/([0-9]+)(.*)$")
-V6_START = "2000::"
-V6_LENGTH = 4
+import yaml
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+class V6toFakeV4:
+    args = None
+    config = None
+    r_v6cidr_bare = re.compile(r"^([0-9a-f:]+)\/([0-9]+)(.*)$")
 
-    parser.add_argument("--config", "-c", type=str, help="configuration json")
-
-    args = parser.parse_args()
-
-    return args
-
-
-def get_match(line):
-    match = re.match(r_v6cidr_bare, line)
-    if match is None:
-        return (None, line)
-
-    (ip, cidr, rest) = match.groups()
-    net = ipaddress.IPv6Network("{}/{}".format(ip, cidr))
-    if not net.subnet_of(V6_SUPERNET):
-        return (None, line)
-    return (net, rest)
-
-
-args = parse_args()
-
-if args.config:
-    with open(args.config) as f:
-        json_config = json.load(f)
-    if "v6_start" in json_config:
-        V6_START = json_config["v6_start"]
-    if "v6_length" in json_config:
-        V6_LENGTH = json_config["v6_length"]
-
-V6_SUPERNET = ipaddress.IPv6Network("{}/{}".format(V6_START, V6_LENGTH))
-
-for line in sys.stdin:
-    (net, rest) = get_match(line)
-    if net is not None:
-        fakecidr = net.prefixlen - V6_LENGTH
-        if fakecidr > 32:
-            fakecidr = 32
-        ip_32 = ipaddress.IPv4Address(
-            (
-                (int(net.network_address) - int(V6_SUPERNET.network_address))
-                & ((2 ** (128 - V6_LENGTH)) - 1)
-            )
-            >> (128 - 32 - V6_LENGTH)
+    def parse_args(self):
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
-        print("{}/{}{}".format(ip_32.compressed, fakecidr, rest))
-    else:
-        print(line, end="")
+
+        parser.add_argument("--config", "-c", type=str, help="configuration yaml")
+
+        self.args = parser.parse_args()
+
+    def parse_config(self):
+        self.config = {}
+        if self.args.config:
+            with open(self.args.config) as f:
+                yaml_config = yaml.safe_load(f)
+
+            if "v6_supernet" in yaml_config:
+                self.config["v6_supernet"] = ipaddress.IPv6Network(
+                    yaml_config["v6_supernet"]
+                )
+
+        if "v6_supernet" not in self.config:
+            self.config["v6_supernet"] = ipaddress.IPv6Network("2000::/4")
+
+    def get_match(self, line):
+        match = re.match(self.r_v6cidr_bare, line)
+        if match is None:
+            return (None, line)
+
+        (ip, cidr, rest) = match.groups()
+        return (ipaddress.IPv6Network("{}/{}".format(ip, cidr)), rest)
+
+    def main(self):
+        self.parse_args()
+        self.parse_config()
+        supernet = self.config["v6_supernet"]
+
+        for line in sys.stdin:
+            (net, rest) = self.get_match(line)
+            if (net is None) or (not net.subnet_of(self.config["v6_supernet"])):
+                print(line, end="")
+                continue
+
+            fakecidr = net.prefixlen - supernet.prefixlen
+            if fakecidr > 32:
+                fakecidr = 32
+            ip_32 = ipaddress.IPv4Address(
+                (int(net.network_address) - int(supernet.network_address))
+                >> (supernet.max_prefixlen - supernet.prefixlen - 32)
+            )
+            print("{}/{}{}".format(ip_32.compressed, fakecidr, rest))
+
+
+if __name__ == "__main__":
+    sys.exit(V6toFakeV4().main())

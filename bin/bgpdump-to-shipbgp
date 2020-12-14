@@ -23,61 +23,74 @@ import sys
 import time
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+class BgpdumptoShipbgp:
+    args = None
+    is_tty = sys.stderr.isatty()
 
-    parser.add_argument(
-        "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
-    )
-
-    args = parser.parse_args()
-
-    return args
-
-
-args = parse_args()
-is_tty = sys.stderr.isatty()
-
-print("Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,")
-print("              r RIB-failure, S Stale")
-print("Origin codes: i - IGP, e - EGP, ? - incomplete")
-print()
-print("   Network            Next Hop            Metric LocPrf Weight Path")
-
-last_network = None
-lines_printed = 0
-last_status_time = time.time()
-
-for line in sys.stdin:
-    items = line.split("|")
-    if items[5] == last_network:
-        printable_network = ""
-    else:
-        printable_network = items[5]
-        last_network = items[5]
-    if items[7] == "IGP":
-        origin_s = "i"
-    elif items[7] == "EGP":
-        origin_s = "e"
-    else:
-        origin_s = "?"
-
-    print(
-        "*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}".format(
-            printable_network, items[3], items[10], items[9], 0, items[6], origin_s
+    def parse_args(self):
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
-    )
-    lines_printed += 1
 
-    now = time.time()
-    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
-        sys.stderr.write(
-            "\r\x1b[KConverting: {} ({} lines)".format(items[5], lines_printed)
+        parser.add_argument(
+            "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
         )
-        sys.stderr.flush()
-        last_status_time = now
 
-if (not args.quiet) and is_tty:
-    sys.stderr.write("\r\x1b[K")
+        self.args = parser.parse_args()
+
+    def main(self):
+        self.parse_args()
+
+        print(
+            "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,"
+        )
+        print("              r RIB-failure, S Stale")
+        print("Origin codes: i - IGP, e - EGP, ? - incomplete")
+        print()
+        print("   Network            Next Hop            Metric LocPrf Weight Path")
+
+        last_network = None
+        lines_printed = 0
+        last_status_time = time.time()
+
+        for line in sys.stdin:
+            items = line.split("|")
+            if items[5] == last_network:
+                printable_network = ""
+            else:
+                printable_network = items[5]
+                last_network = items[5]
+            if items[7] == "IGP":
+                origin_s = "i"
+            elif items[7] == "EGP":
+                origin_s = "e"
+            else:
+                origin_s = "?"
+
+            print(
+                "*  {:<18} {:<19} {:>6} {:>6} {:>6} {} {}".format(
+                    printable_network,
+                    items[3],
+                    items[10],
+                    items[9],
+                    0,
+                    items[6],
+                    origin_s,
+                )
+            )
+            lines_printed += 1
+
+            now = time.time()
+            if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
+                sys.stderr.write(
+                    "\r\x1b[KConverting: {} ({} lines)".format(items[5], lines_printed)
+                )
+                sys.stderr.flush()
+                last_status_time = now
+
+        if (not self.args.quiet) and self.is_tty:
+            sys.stderr.write("\r\x1b[K")
+
+
+if __name__ == "__main__":
+    sys.exit(BgpdumptoShipbgp().main())

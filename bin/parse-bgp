@@ -20,199 +20,221 @@
 
 import argparse
 import ipaddress
-import json
 import re
 import sys
 import time
 
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-
-    parser.add_argument(
-        "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
-    )
-    parser.add_argument("--config", "-c", type=str, help="configuration json")
-
-    args = parser.parse_args()
-
-    return args
+import yaml
 
 
-r_v46cidr = re.compile(r"^\*. ([0-9a-f:\.]+)(\/([0-9]+))?")
+class ParseBGP:
+    args = None
+    config = None
+    r_v46cidr = re.compile(r"^\*. ([0-9a-f:\.]+)(\/([0-9]+))?")
+    is_tty = sys.stderr.isatty()
+    output_space = 24  # Size of image output space, in bits
+    supernet = None
+    low = None
+    hight = None
+    cidr_dict = None  # {}
 
-IGNORE = []
-V6_START = "2000::"
-V6_LENGTH = 4
+    def __init__(self):
+        self.cidr_dict = {}
 
-
-def get_match(line):
-    match = re.match(r_v46cidr, line)
-    if match is None:
-        return
-
-    (ip, _, cidr) = match.groups()
-    ip = ipaddress.ip_address(ip)
-
-    # Some "sh ip bgp" output will only show CIDR notation for classless
-    # announcements.  We need to figure out the netmask for classful
-    # announcements ourselves.
-    if cidr is None:
-        if ip.version == 6:
-            return
-        if ip in ipaddress.IPv4Network("224.0.0.0/3"):
-            return
-        elif ip in ipaddress.IPv4Network("192.0.0.0/3"):
-            cidr = 24
-        elif ip in ipaddress.IPv4Network("128.0.0.0/2"):
-            cidr = 16
-        else:
-            cidr = 8
-
-    net = ipaddress.ip_network("{}/{}".format(ip, cidr))
-
-    if (net.version == 6) and (not net.subnet_of(V6_SUPERNET)):
-        return
-    return net
-
-
-args = parse_args()
-is_tty = sys.stderr.isatty()
-
-if args.config:
-    with open(args.config) as f:
-        json_config = json.load(f)
-    if "v6_start" in json_config:
-        V6_START = json_config["v6_start"]
-    if "v6_length" in json_config:
-        V6_LENGTH = json_config["v6_length"]
-    if "ignore" in json_config:
-        IGNORE = json_config["ignore"]
-
-last_status_time = time.time()
-cidr_24_dict = {}
-routes_loaded = 0
-mode_ipv6 = None
-V6_SUPERNET = ipaddress.IPv6Network("{}/{}".format(V6_START, V6_LENGTH))
-
-for line in sys.stdin:
-    # Look for announcements
-    net = get_match(line)
-    if net is None:
-        continue
-
-    cidr = net.prefixlen
-    # 0.0.0.0/0 and ::/0 aren't too usefuf
-    if cidr == 0:
-        continue
-
-    # Check configured ignores
-    if net.compressed in IGNORE:
-        continue
-
-    routes_loaded += 1
-    if mode_ipv6 is None:
-        if net.version == 6:
-            if not args.quiet:
-                print("IPv6 mode.", file=sys.stderr)
-            mode_ipv6 = True
-        else:
-            if not args.quiet:
-                print("IPv4 mode.", file=sys.stderr)
-            mode_ipv6 = False
-    if mode_ipv6:
-        adj_cidr = cidr - V6_LENGTH
-    else:
-        adj_cidr = cidr
-    if adj_cidr < 0:
-        continue
-    if adj_cidr > 32:
-        adj_cidr = 32
-    cidr_offset = 32 - 8
-    int_32 = int(net.network_address)
-    if mode_ipv6:
-        int_32 = (
-            (int(net.network_address) - int(V6_SUPERNET.network_address))
-            & ((2 ** (128 - V6_LENGTH)) - 1)
-        ) >> (128 - 32 - V6_LENGTH)
-    int_24_masked = int_32 >> 8
-
-    # If the network is smaller than the masked 24-bit destination, all
-    # we need to do is put it in the destination entry.  But if it's
-    # larger, then we need to loop over successive entries.
-    if adj_cidr > cidr_offset:
-        if (int_24_masked not in cidr_24_dict) or (cidr > cidr_24_dict[int_24_masked]):
-            cidr_24_dict[int_24_masked] = cidr
-    else:
-        for i in range(2 ** (cidr_offset - adj_cidr)):
-            int_24_masked_2 = int_24_masked + i
-            if (int_24_masked_2 not in cidr_24_dict) or (
-                cidr > cidr_24_dict[int_24_masked_2]
-            ):
-                cidr_24_dict[int_24_masked_2] = cidr
-
-    now = time.time()
-    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
-        sys.stderr.write("\r\x1b[KLoading: {} ({} routes)".format(net, routes_loaded))
-        sys.stderr.flush()
-        last_status_time = now
-
-total_entries = len(cidr_24_dict)
-if not args.quiet:
-    if is_tty:
-        sys.stderr.write("\r\x1b[K")
-    print(
-        "{} routes loaded, {} entries.".format(routes_loaded, total_entries),
-        file=sys.stderr,
-    )
-
-last_status_time = time.time()
-entries_printed = 0
-
-if mode_ipv6:
-    cidr_low = 8 + V6_LENGTH
-    cidr_high = cidr_low + 52
-else:
-    cidr_low = 8
-    cidr_high = 32
-
-for int_24_masked in sorted(cidr_24_dict.keys()):
-    cidr = cidr_24_dict[int_24_masked]
-
-    # Currently no announcements are outside these bounds (/12 - /64 for
-    # IPv6, /8 - /32 for IPv4), but if they ever do, we want to pretend
-    # they have these bounds.
-    if cidr > cidr_high:
-        adjcidr = cidr_high
-    elif cidr < cidr_low:
-        adjcidr = cidr_low
-    else:
-        adjcidr = cidr
-
-    # Since this output is for feeding into ipv4-heatmap (which by its
-    # name is IPv4-only), we pretend the entire masked 24-bit range is
-    # an IPv4 network, even if it's IPv6.
-    ip_24 = ipaddress.IPv4Address(int_24_masked << 8).compressed
-
-    # Range from cidr_low to cidr_high, mapped to color indexes 0-255
-    color_idx = int((adjcidr - cidr_low) / float(cidr_high - cidr_low) * 255.0)
-
-    print("{} {}".format(ip_24, color_idx))
-
-    entries_printed += 1
-    now = time.time()
-    if (not args.quiet) and is_tty and (now > (last_status_time + 1)):
-        sys.stderr.write(
-            "\r\x1b[KPrinting: {} ({:.0%})".format(
-                ip_24, (entries_printed / total_entries)
-            )
+    def parse_args(self):
+        parser = argparse.ArgumentParser(
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter
         )
-        sys.stderr.flush()
-        last_status_time = now
 
-if not args.quiet:
-    if is_tty:
-        sys.stderr.write("\r\x1b[K")
-    print("{} entries printed.".format(entries_printed), file=sys.stderr)
+        parser.add_argument(
+            "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
+        )
+        parser.add_argument("--config", "-c", type=str, help="configuration yaml")
+
+        self.args = parser.parse_args()
+
+    def parse_config(self):
+        self.config = {}
+        if self.args.config:
+            with open(self.args.config) as f:
+                yaml_config = yaml.safe_load(f)
+
+            if "v4_supernet" in yaml_config:
+                self.config["v4_supernet"] = ipaddress.IPv4Network(
+                    yaml_config["v4_supernet"]
+                )
+            if "v6_supernet" in yaml_config:
+                self.config["v6_supernet"] = ipaddress.IPv6Network(
+                    yaml_config["v6_supernet"]
+                )
+            if "ignore" in yaml_config:
+                self.config["ignore"] = yaml_config["ignore"]
+
+        if "v4_supernet" not in self.config:
+            self.config["v4_supernet"] = ipaddress.IPv4Network("0.0.0.0/0")
+        if "v6_supernet" not in self.config:
+            self.config["v6_supernet"] = ipaddress.IPv6Network("2000::/4")
+        if "ignore" not in self.config:
+            self.config["ignore"] = []
+
+    def get_match(self, line):
+        match = re.match(self.r_v46cidr, line)
+        if match is None:
+            return
+
+        (ip, _, cidr) = match.groups()
+        ip = ipaddress.ip_address(ip)
+
+        # Some "sh ip bgp" output will only show CIDR notation for classless
+        # announcements.  We need to figure out the netmask for classful
+        # announcements ourselves.
+        if cidr is None:
+            if ip.version == 6:
+                return
+            if ip in ipaddress.IPv4Network("224.0.0.0/3"):
+                return
+            elif ip in ipaddress.IPv4Network("192.0.0.0/3"):
+                cidr = 24
+            elif ip in ipaddress.IPv4Network("128.0.0.0/2"):
+                cidr = 16
+            else:
+                cidr = 8
+
+        return ipaddress.ip_network("{}/{}".format(ip, cidr))
+
+    def load_announcements(self):
+        last_status_time = time.time()
+        routes_loaded = 0
+
+        for line in sys.stdin:
+            # Look for announcements
+            net = self.get_match(line)
+            if net is None:
+                continue
+
+            cidr = net.prefixlen
+            # 0.0.0.0/0 and ::/0 aren't too usefuf
+            if cidr == 0:
+                continue
+
+            # Check configured ignores
+            if net.compressed in self.config["ignore"]:
+                continue
+
+            if self.supernet is None:
+                if net.version == 6:
+                    if not self.args.quiet:
+                        print("IPv6 mode.", file=sys.stderr)
+                    self.supernet = self.config["v6_supernet"]
+                    self.low = 8 + self.supernet.prefixlen
+                    self.high = self.low + 52
+                else:
+                    if not self.args.quiet:
+                        print("IPv4 mode.", file=sys.stderr)
+                    self.supernet = self.config["v4_supernet"]
+                    self.low = 8
+                    self.high = 32
+
+            if not net.subnet_of(self.supernet):
+                continue
+
+            adj_cidr = cidr - self.supernet.prefixlen
+            if adj_cidr < 0:
+                continue
+            if adj_cidr > 32:
+                adj_cidr = 32
+            int_masked = (
+                int(net.network_address) - int(self.supernet.network_address)
+            ) >> (
+                self.supernet.max_prefixlen
+                - self.supernet.prefixlen
+                - self.output_space
+            )
+
+            routes_loaded += 1
+
+            # If the network is smaller than the masked 24-bit destination, all
+            # we need to do is put it in the destination entry.  But if it's
+            # larger, then we need to loop over successive entries.
+            if adj_cidr >= self.output_space:
+                if cidr >= self.cidr_dict.get(int_masked, 0):
+                    self.cidr_dict[int_masked] = cidr
+            else:
+                for i in range(2 ** (self.output_space - adj_cidr)):
+                    int_masked_more = int_masked + i
+                    if cidr >= self.cidr_dict.get(int_masked_more, 0):
+                        self.cidr_dict[int_masked_more] = cidr
+
+            now = time.time()
+            if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
+                sys.stderr.write(
+                    "\r\x1b[KLoading: {} ({} routes)".format(net, routes_loaded)
+                )
+                sys.stderr.flush()
+                last_status_time = now
+
+        if not self.args.quiet:
+            if self.is_tty:
+                sys.stderr.write("\r\x1b[K")
+            print(
+                "{} routes loaded, {} entries.".format(
+                    routes_loaded, len(self.cidr_dict)
+                ),
+                file=sys.stderr,
+            )
+
+    def print_heatmap(self):
+        total_entries = len(self.cidr_dict)
+        last_status_time = time.time()
+        entries_printed = 0
+
+        for int_masked in sorted(self.cidr_dict.keys()):
+            cidr = self.cidr_dict[int_masked]
+
+            # Currently no announcements are outside these bounds (/12 - /64 for
+            # IPv6, /8 - /32 for IPv4), but if they ever do, we want to pretend
+            # they have these bounds for visual render purposes.
+            if cidr > self.high:
+                adjcidr = self.high
+            elif cidr < self.low:
+                adjcidr = self.low
+            else:
+                adjcidr = cidr
+
+            # Since this output is for feeding into ipv4-heatmap (which by its
+            # name is IPv4-only), we pretend the entire masked 24-bit range is
+            # an IPv4 network, even if it's IPv6.
+            ip = ipaddress.IPv4Address(
+                int_masked << (32 - self.output_space)
+            ).compressed
+
+            # Range from low to high CIDR, mapped to color indexes 0-255
+            color_idx = int((adjcidr - self.low) / float(self.high - self.low) * 255.0)
+
+            print("{} {}".format(ip, color_idx))
+
+            entries_printed += 1
+            now = time.time()
+            if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
+                sys.stderr.write(
+                    "\r\x1b[KPrinting: {} ({:.0%})".format(
+                        ip, (entries_printed / total_entries)
+                    )
+                )
+                sys.stderr.flush()
+                last_status_time = now
+
+        if not self.args.quiet:
+            if self.is_tty:
+                sys.stderr.write("\r\x1b[K")
+            print("{} entries printed.".format(entries_printed), file=sys.stderr)
+
+    def main(self):
+        self.parse_args()
+        self.parse_config()
+        self.load_announcements()
+        self.print_heatmap()
+
+
+if __name__ == "__main__":
+    sys.exit(ParseBGP().main())

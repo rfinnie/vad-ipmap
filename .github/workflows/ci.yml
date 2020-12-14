@@ -8,6 +8,6 @@ jobs:
     - name: Dependency packages
       run: |
         sudo apt update
-        sudo apt -y install bzip2
+        sudo apt -y install bzip2 python3-yaml
     - name: Script tests
       run: .github/bin/script-tests

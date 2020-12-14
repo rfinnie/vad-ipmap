@@ -38,12 +38,12 @@ runtest \
 runtest \
     "parse-bgp - IPv4 - custom config" \
     "38f279a3fddc4066762726a2182bb89f  -" \
-    "$(bzcat .github/testdata/ipv4-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv4.config.json | md5sum)" \
+    "$(bzcat .github/testdata/ipv4-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv4.config.yaml | md5sum)" \
 || bad=1
 runtest \
     "parse-bgp - IPv6 - custom config" \
     "5ade18fa846e1f035bb7d542fc907ab0  -" \
-    "$(bzcat .github/testdata/ipv6-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv6-various.config.json | md5sum)" \
+    "$(bzcat .github/testdata/ipv6-sample.bgpdump.bz2 | bin/bgpdump-to-shipbgp | bin/parse-bgp -c .github/testdata/ipv6-various.config.yaml | md5sum)" \
 || bad=1
 runtest \
     "v6-to-fakev4" \
@@ -53,7 +53,7 @@ runtest \
 runtest \
     "v6-to-fakev4 - custom config" \
     "fe82f55482bfd8dc05c75f4dec7faf56  -" \
-    "$(bzcat .github/testdata/ipv6-various-annotations.bz2 | bin/v6-to-fakev4 -c .github/testdata/ipv6-various.config.json | md5sum)" \
+    "$(bzcat .github/testdata/ipv6-various-annotations.bz2 | bin/v6-to-fakev4 -c .github/testdata/ipv6-various.config.yaml | md5sum)" \
 || bad=1
 
 if [ "${bad}" = 1 ]; then
