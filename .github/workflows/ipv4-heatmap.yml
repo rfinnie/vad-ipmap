@@ -1,0 +1,41 @@
+name: ipv4-heatmap
+on:
+  schedule:
+  - cron: '34 5 16 * *'
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/checkout@v2
+      with:
+        repository: measurement-factory/ipv4-heatmap
+        path: ipv4-heatmap
+    - name: Dependency packages
+      run: |
+        sudo apt update
+        sudo apt -y remove libgd3  # Eww. https://github.com/actions/virtual-environments/issues/2139
+        sudo apt -y install build-essential libgd-dev curl bzip2 python3-yaml bgpdump fonts-3270
+    - name: Build ipv4-heatmap
+      run: |
+        make -C ipv4-heatmap ipv4-heatmap
+        cp ipv4-heatmap/ipv4-heatmap bin/ipv4-heatmap
+    - name: Download and set up heatmap data and sources
+      run: |
+        curl -o sources/ipv4-2020-01.rib.bz2 http://archive.routeviews.org/bgpdata/2020.01/RIBS/rib.20200101.0200.bz2
+        curl -o sources/ipv6-2020-01.rib.bz2 http://archive.routeviews.org/route-views6/bgpdata/2020.01/RIBS/rib.20200101.0200.bz2
+        ln -sf examples/ipv4-2020-01.annotations heatmap-data/ipv4-2020-01.annotations
+        ln -sf examples/ipv4-2020-01.config.yaml heatmap-data/ipv4-2020-01.config.yaml
+        ln -sf examples/ipv4-2020-01.shade heatmap-data/ipv4-2020-01.shade
+        ln -sf examples/ipv6-2020-01.annotations.in heatmap-data/ipv6-2020-01.annotations.in
+        ln -sf examples/ipv6-2020-01.config.yaml heatmap-data/ipv6-2020-01.config.yaml
+        ln -sf examples/ipv6-2020-01.shade.in heatmap-data/ipv6-2020-01.shade.in
+        rm -f png/.empty
+    - name: Build PNGs
+      run: make -j2 png/ipv4-2020-01.png png/ipv6-2020-01.png HEATMAP_FONT="3270 Condensed"
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: ipv4-heatmap.${{ github.workflow }}.${{ github.job }}.${{ github.run_number }}.${{ github.run_id }}
+        path: png
+
