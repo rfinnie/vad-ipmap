@@ -2,6 +2,7 @@ name: ipv4-heatmap
 on:
   schedule:
   - cron: '34 5 16 * *'
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-20.04
