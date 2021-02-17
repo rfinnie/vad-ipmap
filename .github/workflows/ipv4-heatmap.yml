@@ -15,7 +15,7 @@ jobs:
     - name: Dependency packages
       run: |
         sudo apt update
-        sudo apt -y remove libgd3  # Eww. https://github.com/actions/virtual-environments/issues/2139
+        sudo apt -y remove nginx libgd3  # Eww. https://github.com/actions/virtual-environments/issues/2139
         sudo apt -y install build-essential libgd-dev curl bzip2 python3-yaml bgpdump fonts-3270
     - name: Build ipv4-heatmap
       run: |
