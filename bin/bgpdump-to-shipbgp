@@ -11,7 +11,7 @@ import time
 
 class BgpdumptoShipbgp:
     args = None
-    is_tty = sys.stderr.isatty()
+    is_tty = sys.stdin.isatty()
 
     def parse_args(self):
         parser = argparse.ArgumentParser(

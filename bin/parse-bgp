@@ -17,7 +17,7 @@ class ParseBGP:
     args = None
     config = None
     r_v46cidr = re.compile(r"^\*. ([0-9a-f:\.]+)(\/([0-9]+))?")
-    is_tty = sys.stderr.isatty()
+    is_tty = sys.stdin.isatty()
     output_space = 24  # Size of image output space, in bits
     supernet = None
     low = None
