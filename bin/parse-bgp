@@ -28,13 +28,9 @@ class ParseBGP:
         self.cidr_dict = {}
 
     def parse_args(self):
-        parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
-        )
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-        parser.add_argument(
-            "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
-        )
+        parser.add_argument("--quiet", "-q", dest="quiet", action="store_true", help="quiet mode")
         parser.add_argument("--config", "-c", type=str, help="configuration yaml")
 
         self.args = parser.parse_args()
@@ -46,13 +42,9 @@ class ParseBGP:
                 yaml_config = yaml.safe_load(f)
 
             if "v4_supernet" in yaml_config:
-                self.config["v4_supernet"] = ipaddress.IPv4Network(
-                    yaml_config["v4_supernet"]
-                )
+                self.config["v4_supernet"] = ipaddress.IPv4Network(yaml_config["v4_supernet"])
             if "v6_supernet" in yaml_config:
-                self.config["v6_supernet"] = ipaddress.IPv6Network(
-                    yaml_config["v6_supernet"]
-                )
+                self.config["v6_supernet"] = ipaddress.IPv6Network(yaml_config["v6_supernet"])
             if "ignore" in yaml_config:
                 self.config["ignore"] = yaml_config["ignore"]
 
@@ -68,7 +60,7 @@ class ParseBGP:
         if match is None:
             return
 
-        (ip, _, cidr) = match.groups()
+        ip, _, cidr = match.groups()
         ip = ipaddress.ip_address(ip)
 
         # Some "sh ip bgp" output will only show CIDR notation for classless
@@ -151,9 +143,7 @@ class ParseBGP:
 
             now = time.time()
             if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
-                sys.stderr.write(
-                    "\r\x1b[KLoading: {} ({} routes)".format(net, routes_loaded)
-                )
+                sys.stderr.write("\r\x1b[KLoading: {} ({} routes)".format(net, routes_loaded))
                 sys.stderr.flush()
                 last_status_time = now
 
@@ -161,9 +151,7 @@ class ParseBGP:
             if self.is_tty:
                 sys.stderr.write("\r\x1b[K")
             print(
-                "{} routes loaded, {} entries.".format(
-                    routes_loaded, len(self.cidr_dict)
-                ),
+                "{} routes loaded, {} entries.".format(routes_loaded, len(self.cidr_dict)),
                 file=sys.stderr,
             )
 
@@ -188,9 +176,7 @@ class ParseBGP:
             # Since this output is for feeding into ipv4-heatmap (which by its
             # name is IPv4-only), we pretend the entire masked 24-bit range is
             # an IPv4 network, even if it's IPv6.
-            ip = ipaddress.IPv4Address(
-                int_masked << (32 - self.output_space)
-            ).compressed
+            ip = ipaddress.IPv4Address(int_masked << (32 - self.output_space)).compressed
 
             # Range from low to high CIDR, mapped to color indexes 0-255
             color_idx = int((adjcidr - self.low) / float(self.high - self.low) * 255.0)
@@ -200,11 +186,7 @@ class ParseBGP:
             entries_printed += 1
             now = time.time()
             if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
-                sys.stderr.write(
-                    "\r\x1b[KPrinting: {} ({:.0%})".format(
-                        ip, (entries_printed / total_entries)
-                    )
-                )
+                sys.stderr.write("\r\x1b[KPrinting: {} ({:.0%})".format(ip, (entries_printed / total_entries)))
                 sys.stderr.flush()
                 last_status_time = now
 

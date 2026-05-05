@@ -8,9 +8,9 @@ index d4769ef..c04fcfe 100644
   */
 -#define FONT_ALPHA 75
 +#define FONT_ALPHA 48
- 
+
  int annotateColor = -1;
- 
+
 @@ -49,7 +49,7 @@ annotate_cidr(gdImagePtr image, const char *cidr, const char *label, const char
  	box2.ymax = box2.ymin + 24;
  	if (0 == strcmp(sublabel, "prefix"))
@@ -19,7 +19,7 @@ index d4769ef..c04fcfe 100644
 +	text_in_bbox(image, sublabel, box2, annotateColor, 24.0);
      }
  }
- 
+
 diff --git a/ipv4-heatmap.c b/ipv4-heatmap.c
 index e7bbe7b..5d7d8f1 100644
 --- a/ipv4-heatmap.c
@@ -34,7 +34,7 @@ index e7bbe7b..5d7d8f1 100644
      int order = set_order();
 @@ -116,17 +115,264 @@ initialize(void)
  	gdImageFill(image, 0, 0, gdImageColorAllocate(image, 255, 255, 255));
- 
+
      /*
 -     * The default color map ranges from red to blue
 +     * The default color map ranges from purple to yellow (CubeYF)
@@ -304,6 +304,6 @@ index e7bbe7b..5d7d8f1 100644
 +    colors[253] = gdImageColorAllocate(image, 205, 236, 90);
 +    colors[254] = gdImageColorAllocate(image, 207, 236, 91);
 +    colors[255] = gdImageColorAllocate(image, 209, 235, 91);
- 
+
      /*
       * If the input data should be logarithmically scaled, then calculate the

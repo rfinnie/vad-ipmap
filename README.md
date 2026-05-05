@@ -48,8 +48,17 @@ Since both MRT and "sh ip bgp" sources are needed, we use "sh ip bgp" as the com
 
 ## License
 
-Copyright (C) 2015-2021 [Ryan Finnie](http://www.finnie.org/)
+© 2015 [Ryan Finnie](http://www.finnie.org/)
 
 This Source Code Form is subject to the terms of the Mozilla Public
 License, v. 2.0. If a copy of the MPL was not distributed with this
 file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+This document is provided under the following license:
+
+    SPDX-PackageName: vad-ipmap
+    SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+    SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+    SPDX-FileComment: README
+    SPDX-FileCopyrightText: SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
+    SPDX-License-Identifier: CC-BY-SA-4.0

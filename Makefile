@@ -1,3 +1,9 @@
+# SPDX-PackageName: vad-ipmap
+# SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+# SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
+# SPDX-License-Identifier: MPL-2.0
+
 export PATH := $(CURDIR)/bin:$(PATH)
 
 HEATMAP_FONT = Source Sans Pro:style=Regular

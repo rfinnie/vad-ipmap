@@ -14,22 +14,16 @@ class BgpdumptoShipbgp:
     is_tty = sys.stderr.isatty()
 
     def parse_args(self):
-        parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
-        )
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-        parser.add_argument(
-            "--quiet", "-q", dest="quiet", action="store_true", help="quiet mode"
-        )
+        parser.add_argument("--quiet", "-q", dest="quiet", action="store_true", help="quiet mode")
 
         self.args = parser.parse_args()
 
     def main(self):
         self.parse_args()
 
-        print(
-            "Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,"
-        )
+        print("Status codes: s suppressed, d damped, h history, * valid, > best, i - internal,")
         print("              r RIB-failure, S Stale")
         print("Origin codes: i - IGP, e - EGP, ? - incomplete")
         print()
@@ -68,9 +62,7 @@ class BgpdumptoShipbgp:
 
             now = time.time()
             if (not self.args.quiet) and self.is_tty and (now > (last_status_time + 1)):
-                sys.stderr.write(
-                    "\r\x1b[KConverting: {} ({} lines)".format(items[5], lines_printed)
-                )
+                sys.stderr.write("\r\x1b[KConverting: {} ({} lines)".format(items[5], lines_printed))
                 sys.stderr.flush()
                 last_status_time = now
 

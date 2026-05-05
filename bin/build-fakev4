@@ -20,9 +20,7 @@ class V6toFakeV4:
     output_space = 24  # Size of image output space, in bits
 
     def parse_args(self):
-        parser = argparse.ArgumentParser(
-            formatter_class=argparse.ArgumentDefaultsHelpFormatter
-        )
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
         parser.add_argument("--config", "-c", type=str, help="configuration yaml")
 
@@ -35,13 +33,9 @@ class V6toFakeV4:
                 yaml_config = yaml.safe_load(f)
 
             if "v4_supernet" in yaml_config:
-                self.config["v4_supernet"] = ipaddress.IPv4Network(
-                    yaml_config["v4_supernet"]
-                )
+                self.config["v4_supernet"] = ipaddress.IPv4Network(yaml_config["v4_supernet"])
             if "v6_supernet" in yaml_config:
-                self.config["v6_supernet"] = ipaddress.IPv6Network(
-                    yaml_config["v6_supernet"]
-                )
+                self.config["v6_supernet"] = ipaddress.IPv6Network(yaml_config["v6_supernet"])
 
         if "v4_supernet" not in self.config:
             self.config["v4_supernet"] = ipaddress.IPv4Network("0.0.0.0/0")
@@ -53,7 +47,7 @@ class V6toFakeV4:
         if match is None:
             return (None, line)
 
-        (ip, cidr, rest) = match.groups()
+        ip, cidr, rest = match.groups()
         return (ipaddress.ip_network("{}/{}".format(ip, cidr)), rest)
 
     def main(self):
@@ -61,7 +55,7 @@ class V6toFakeV4:
         self.parse_config()
 
         for line in sys.stdin:
-            (net, rest) = self.get_match(line)
+            net, rest = self.get_match(line)
             if net is None:
                 print(line, end="")
                 continue

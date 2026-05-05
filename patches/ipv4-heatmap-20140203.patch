@@ -18,7 +18,7 @@ diff -ru ipv4-heatmap-20140203.orig/annotate.c ipv4-heatmap-20140203/annotate.c
   */
 -#define FONT_ALPHA 75
 +#define FONT_ALPHA 48
- 
+
  extern gdImagePtr image;
  extern const char *font_file_or_name;
 @@ -53,7 +53,7 @@
@@ -29,7 +29,7 @@ diff -ru ipv4-heatmap-20140203.orig/annotate.c ipv4-heatmap-20140203/annotate.c
 +	text_in_bbox(sublabel, box2, annotateColor, 24.0);
      }
  }
- 
+
 diff -ru ipv4-heatmap-20140203.orig/ipv4-heatmap.c ipv4-heatmap-20140203/ipv4-heatmap.c
 --- ipv4-heatmap-20140203.orig/ipv4-heatmap.c	2014-02-03 09:42:29.000000000 -0800
 +++ ipv4-heatmap-20140203/ipv4-heatmap.c	2015-12-20 14:36:20.997219023 -0800
@@ -43,7 +43,7 @@ diff -ru ipv4-heatmap-20140203.orig/ipv4-heatmap.c ipv4-heatmap-20140203/ipv4-he
      int order = set_order();
 @@ -120,17 +119,264 @@
  	gdImageFill(image, 0, 0, gdImageColorAllocate(image, 255, 255, 255));
- 
+
      /*
 -     * The default color map ranges from red to blue
 +     * The default color map ranges from purple to yellow (CubeYF)
@@ -313,7 +313,7 @@ diff -ru ipv4-heatmap-20140203.orig/ipv4-heatmap.c ipv4-heatmap-20140203/ipv4-he
 +    colors[253] = gdImageColorAllocate(image, 205, 236, 90);
 +    colors[254] = gdImageColorAllocate(image, 207, 236, 91);
 +    colors[255] = gdImageColorAllocate(image, 209, 235, 91);
- 
+
      /*
       * If the input data should be logarithmically scaled, then calculate the
 diff -ru ipv4-heatmap-20140203.orig/Makefile ipv4-heatmap-20140203/Makefile
