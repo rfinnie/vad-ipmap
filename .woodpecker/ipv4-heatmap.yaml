@@ -1,0 +1,73 @@
+# SPDX-PackageName: vad-ipmap
+# SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+# SPDX-FileComment: Woodpecker CI workflow
+# SPDX-FileCopyrightText: © 2026 Ryan Finnie <ryan@finnie.org>
+# SPDX-License-Identifier: MPL-2.0
+---
+when:
+  - event: ["manual", "cron"]
+    cron: "heatmap"
+labels:
+  platform: "linux/amd64"
+steps:
+  - name: "Build heatmaps"
+    image: "debian"
+    commands: |
+      # Dependencies
+      apt update
+      apt -y install git build-essential libgd-dev curl bzip2 python3 python3-yaml bgpdump fonts-3270 make
+
+      # Git submodule
+      git clone --depth=1 --no-tags https://github.com/measurement-factory/ipv4-heatmap ipv4-heatmap
+
+      # Build ipv4-heatmap
+      make -C ipv4-heatmap ipv4-heatmap
+      cp ipv4-heatmap/ipv4-heatmap bin/ipv4-heatmap
+
+      # Download and set up heatmap data and sources
+      curl -o sources/ipv4-2020-01.rib.bz2 https://archive.routeviews.org/bgpdata/2020.01/RIBS/rib.20200101.0200.bz2
+      curl -o sources/ipv6-2020-01.rib.bz2 https://archive.routeviews.org/route-views6/bgpdata/2020.01/RIBS/rib.20200101.0200.bz2
+      ln -sf examples/ipv4-2020-01.annotations heatmap-data/ipv4-2020-01.annotations
+      ln -sf examples/ipv4-2020-01.config.yaml heatmap-data/ipv4-2020-01.config.yaml
+      ln -sf examples/ipv4-2020-01.shade heatmap-data/ipv4-2020-01.shade
+      ln -sf examples/ipv6-2020-01.annotations.in heatmap-data/ipv6-2020-01.annotations.in
+      ln -sf examples/ipv6-2020-01.config.yaml heatmap-data/ipv6-2020-01.config.yaml
+      ln -sf examples/ipv6-2020-01.shade.in heatmap-data/ipv6-2020-01.shade.in
+      rm -f png/.empty
+
+      # Build PNGs
+      make png/ipv4-2020-01.png png/ipv6-2020-01.png HEATMAP_FONT="3270 Condensed"
+
+      # Artifacts
+      artifact_fn="${CI_REPO_NAME}-${CI_PIPELINE_CREATED}-${CI_WORKFLOW_NAME}-${CI_PIPELINE_NUMBER}.tar.gz"
+      mkdir -p .artifacts-dist
+      tar zcvf ".artifacts-dist/$${artifact_fn}" png
+  - name: "Upload artifacts"
+    image: "woodpeckerci/plugin-s3"
+    settings:
+      endpoint: "http://nibbler.snowman.lan:3900"
+      path_style: true
+      region: "garage"
+      bucket: "ci-artifacts"
+      access_key:
+        from_secret: "garage_access_key"
+      secret_key:
+        from_secret: "garage_secret_key"
+      source: ".artifacts-dist/*"
+      strip_prefix: ".artifacts-dist/"
+      target: "/"
+  - name: "Notify Mastodon if failure"
+    when:
+      - status: ["failure"]
+    image: "woodpeckerci/plugin-mastodon-post"
+    settings:
+      server_url: "https://m29.us"
+      access_token:
+        from_secret: "m29_token"
+      status: |
+        🪿 🪿 🪿 FAILURE: {{ CI_REPO }} 🪿 🪿 🪿
+        Workflow: {{ CI_WORKFLOW_NAME }} ({{ CI_PIPELINE_EVENT }} on {{ CI_COMMIT_REF }})
+
+        Pipeline: {{ CI_PIPELINE_URL }}
+        Commit: {{ CI_PIPELINE_FORGE_URL }}
