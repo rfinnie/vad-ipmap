@@ -44,7 +44,7 @@ steps:
       artifact_fn="${CI_REPO_NAME}-${CI_PIPELINE_CREATED}-${CI_WORKFLOW_NAME}-${CI_PIPELINE_NUMBER}.tar.gz"
       mkdir -p .artifacts-dist
       tar zcvf ".artifacts-dist/$${artifact_fn}" png
-      curl -v --fail-with-body -T ".artifacts-dist/$${artifact_fn}" -H "Authorization: Basic $${ASSETS_AUTH}" "http://artifacts.snowman.lan/$${artifact_fn}"
+      curl --fail-with-body -T ".artifacts-dist/$${artifact_fn}" -H "Authorization: Basic $${ASSETS_AUTH}" "http://artifacts.snowman.lan/$${artifact_fn}"
     environment:
       ASSETS_AUTH:
         from_secret: "ASSETS_AUTH"
