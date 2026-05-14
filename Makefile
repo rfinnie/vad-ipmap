@@ -1,6 +1,6 @@
 # SPDX-PackageName: vad-ipmap
 # SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
-# SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+# SPDX-PackageDownloadLocation: https://forge.colobox.com/rfinnie/vad-ipmap
 # SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
 

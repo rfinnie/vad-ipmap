@@ -58,7 +58,7 @@ This document is provided under the following license:
 
     SPDX-PackageName: vad-ipmap
     SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
-    SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+    SPDX-PackageDownloadLocation: https://forge.colobox.com/rfinnie/vad-ipmap
     SPDX-FileComment: README
     SPDX-FileCopyrightText: SPDX-FileCopyrightText: © 2015 Ryan Finnie <ryan@finnie.org>
     SPDX-License-Identifier: CC-BY-SA-4.0

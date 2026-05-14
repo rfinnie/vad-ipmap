@@ -1,6 +1,6 @@
 # SPDX-PackageName: vad-ipmap
 # SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
-# SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/vad-ipmap
+# SPDX-PackageDownloadLocation: https://forge.colobox.com/rfinnie/vad-ipmap
 # SPDX-FileComment: pre-commit config
 # SPDX-FileCopyrightText: © 2025 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
@@ -49,7 +49,7 @@ repos:
     hooks:
       - id: "reuse-lint-file"
 
-  - repo: "https://codeberg.org/rfinnie/woodpecker-shellcheck"
+  - repo: "https://forge.colobox.com/rfinnie/woodpecker-shellcheck"
     rev: "v1.1.0"
     hooks:
       - id: "woodpecker-shellcheck"
