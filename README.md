@@ -1,5 +1,8 @@
 # Velociraptor Aerospace Dynamics IP Map
 
+[![Git forge repository](https://img.shields.io/badge/git-forge-orange?logo=forgejo)](https://forge.colobox.com/rfinnie/vad-ipmap)
+[![CI pipeline status](https://woodpecker.colobox.com/api/badges/59/status.svg)](https://woodpecker.colobox.com/repos/59)
+
 This archive contains code and data used to produce the map portion of the [Velociraptor Aerospace Dynamics IP Map](http://vad.solutions/ipmap/).
 
 ## Requirements
