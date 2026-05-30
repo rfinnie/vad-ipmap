@@ -6,7 +6,8 @@
 # SPDX-License-Identifier: MPL-2.0
 ---
 when:
-  - event: ["manual", "cron"]
+  - event: "manual"
+  - event: "cron"
     cron: "heatmap"
 labels:
   platform: "linux/amd64"
